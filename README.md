@@ -1,0 +1,2 @@
+# SnakeY
+Another snake game.
