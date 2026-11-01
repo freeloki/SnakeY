@@ -36,6 +36,6 @@ Akış:
    setx GODOT "C:\YOL\Godot_v4.7.2-stable_win64_console.exe"
    ```
    Yeni bir terminal aç ve doğrula: `"$GODOT" --version` (Git Bash) veya `& $env:GODOT --version` (PowerShell).
-2. Proje klasöründe `claude` ile Claude Code'u başlat. `CLAUDE.md` ve agent'lar otomatik yüklenir. `/agents` komutuyla listeyi gör.
+2. Proje klasöründe `claude` ile Claude Code'u başlat. `CLAUDE.md` ve agent'lar otomatik yüklenir. Doğrulamak için Claude'a "hangi subagent'lar tanımlı?" diye sor. (`/agents` sihirbazı yeni sürümlerde kaldırıldı; agent'lar doğrudan `.claude/agents/` dosyalarından okunur.)
 3. İlk komut önerisi:
    > ROADMAP'teki Faz 1'e başla. F1-1'i gdscript-dev'e ver, tester ile doğrula, reviewer'a okut, ayrı dalda commit at ve bana manuel test listesini ver.
