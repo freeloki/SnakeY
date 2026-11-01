@@ -11,7 +11,7 @@ Standart doğrulama sırası:
 2. Değişen her `.gd` için `--check-only --script`.
 3. `tools/smoke_test.gd` varsa: tüm sahneleri yükleyip birkaç kare çalıştırır, hata yoksa exit 0.
 4. AI'ya dokunan değişikliklerde `tools/eval_ai.gd` (sabit seed). Önceki ölçümle karşılaştır.
-5. Tutarlılık: paylaşılan sabitler üç script'te aynı mı? (`grep -n "^const" scripts/*.gd` ile karşılaştır.)
+5. Tutarlılık: öğrenme sabitleri ve mantığı sahne script'lerine geri kopyalanmamış mı? (`grep -n "^const" scripts/*.gd` ile kontrol et, yalnızca `scripts/core/` altında olmalı.)
 
 Kurallar:
 - Oyun koduna (scripts/, scenes/) **dokunma**. Sadece `tools/` ve `tests/` altına test kodu yazabilirsin.

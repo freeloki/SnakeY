@@ -1,4 +1,5 @@
 extends Node2D
+## Tekli Oyun: the trained snake plays a ladder rival (level 1-100) while the user watches.
 
 const CELL_SIZE := 32
 const GRID_WIDTH := SnakeArena.GRID_WIDTH
@@ -6,8 +7,6 @@ const GRID_HEIGHT := SnakeArena.GRID_HEIGHT
 const BARRIER_ROW := SnakeArena.BARRIER_ROW
 const PHASE2_DURATION := 30.0
 const MOVE_INTERVAL := 0.14
-
-const LADDER_PATH := "user://ladder_progress.json"
 
 # Shared Q-learning brain (see scripts/core/brain.gd). The player model is read-only here.
 var brain := SnakeBrain.new()
@@ -47,7 +46,7 @@ func _ready() -> void:
 	randomize()
 	brain.load_brain()
 	brain.load_player_model()
-	_load_ladder_progress()
+	highest_cleared = PresetAI.load_highest_cleared()
 	_setup_picker_ui()
 	_setup_game_ui()
 
@@ -337,7 +336,7 @@ func _end_match(result_text: String, trained_won: bool) -> void:
 
 	if trained_won and chosen_level > highest_cleared:
 		highest_cleared = chosen_level
-		_save_ladder_progress()
+		PresetAI.save_highest_cleared(highest_cleared)
 
 	message_label.text = "%s\nSeviye %d\nYilanin: %d   Rakip: %d" % [result_text, chosen_level, arena.score_bottom, arena.score_top]
 	message_label.visible = true
@@ -371,7 +370,7 @@ func _update_timer_label() -> void:
 		remaining = max(remaining, 0)
 		timer_label.text = "Hazirlik: %ds" % remaining
 	else:
-		var remaining := int(ceil(SnakeArena.PHASE1_DURATION + PHASE2_DURATION - arena.elapsed))
+		var remaining := int(ceil(SnakeArena.PHASE1_DURATION + arena.phase2_duration - arena.elapsed))
 		remaining = max(remaining, 0)
 		timer_label.text = "Acik Saha: %ds" % remaining
 
@@ -430,24 +429,3 @@ func _draw_snake(body: Array, head_color: Color, body_color: Color) -> void:
 		var rect := Rect2(p.x * CELL_SIZE + 2, p.y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4)
 		var col := head_color if i == 0 else body_color
 		draw_rect(rect, col, true)
-
-
-# ---------------------------------------------------------------------------
-# Persistence
-# ---------------------------------------------------------------------------
-
-func _load_ladder_progress() -> void:
-	if FileAccess.file_exists(LADDER_PATH):
-		var f := FileAccess.open(LADDER_PATH, FileAccess.READ)
-		if f:
-			var data = JSON.parse_string(f.get_as_text())
-			f.close()
-			if typeof(data) == TYPE_DICTIONARY and data.has("highest_cleared"):
-				highest_cleared = int(data["highest_cleared"])
-
-
-func _save_ladder_progress() -> void:
-	var f := FileAccess.open(LADDER_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify({"highest_cleared": highest_cleared}))
-		f.close()

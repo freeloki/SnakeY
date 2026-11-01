@@ -14,22 +14,26 @@ Bu dosyayı her oturum ve her alt agent okur. Kısa ve güncel tutun.
 | `scenes/main.tscn` + `scripts/main.gd` | **Antrenman**: oyuncu (alt) vs AI (üst), taklit öğrenme verisi toplar |
 | `scenes/single_player.tscn` + `scripts/single_player.gd` | **Tekli Oyun**: eğitilen AI vs 1-100 seviye hazır rakip, kullanıcı izler |
 | `scenes/fast_train.tscn` + `scripts/fast_train.gd` | **Hızlı Antrenman**: AI takıldığı seviyeye karşı otomatik çok maç (Turbo) |
+| `scripts/core/brain.gd` | `SnakeBrain`: Q-tablosu, öğrenme ve ödül sabitleri, taklit modeli, beyin kaydet/yükle |
+| `scripts/core/arena.gd` | `SnakeArena`: grid, hareket, çarpışma, yem, faz, durum kodlaması. Çizim ve input yok |
+| `scripts/core/preset_ai.gd` | `PresetAI`: seviye parametreleri, hazır rakip kararı, flood-fill, merdiven kaydı |
+| `tools/golden_trace.gd` + `tools/run_golden.sh` | Davranış koruma testi: aynı seed ile üç modun kayıt ve mesaj hash'ini karşılaştırır |
 | `docs/ROADMAP.md` | Faz planı ve görev listesi (tek doğruluk kaynağı) |
 | `docs/TESTING.md` | Test katmanları ve komutlar |
 
 ## Kalıcı veri (`user://`, Windows'ta `%APPDATA%\Godot\app_userdata\snakey\`)
 | Dosya | Yazan | Okuyan |
 |---|---|---|
-| `ai_brain.json` (q_table, games_played, epsilon, imitation_weight) | main, single_player, fast_train | hepsi |
+| `ai_brain.json` (q_table, games_played; epsilon ve imitation_weight dosyada yok, yüklemede games_played'den hesaplanır) | main, single_player, fast_train | hepsi |
 | `player_model.json` | **sadece** main | single_player, fast_train (salt okunur) |
 | `ladder_progress.json` (highest_cleared) | single_player, fast_train | hepsi |
 | `snakey_save.json` | main | main |
 
-**Format değişikliği = kullanıcının eğitimi kaybolur.** `ai_brain.json` şemasını veya durum kodlamasını (`_compute_trained_state`) değiştiren her iş önce Yavuz'a sorulur ve bir sürüm/migration planı içerir.
+**Format değişikliği = kullanıcının eğitimi kaybolur.** `ai_brain.json` şemasını veya durum kodlamasını (`SnakeArena.compute_state`) değiştiren her iş önce Yavuz'a sorulur ve bir sürüm/migration planı içerir.
 
 ## Kritik kurallar
-1. **Paylaşılan beyin:** Üç script de aynı Q-tablosunu kullanır. `ALPHA, GAMMA, EPSILON_*, AI_*_REWARD, IMITATION_*` sabitleri ve `_compute_trained_state / _select_action / _update_q` üç dosyada **birebir aynı** olmalı. Birini değiştiren hepsini değiştirir (Faz 1'de bu kod `scripts/core/` altına taşınacak).
-2. Grid: 15 sütun x 23 satır, satır 11 barikat. Üst yarı AI, alt yarı oyuncu/rakip.
+1. **Paylaşılan beyin:** Üç mod aynı Q-tablosunu kullanır. Öğrenme sabitleri ve mantığı yalnızca `scripts/core/` altındadır, sahne script'lerine kopyalanmaz. Sahne script'lerinde yalnızca UI, çizim, input ve maç akışı bulunur.
+2. Grid: 15 sütun x 23 satır, satır 11 barikat. Antrenman'da üst yarı AI, alt yarı oyuncu. Tekli Oyun ve Hızlı Antrenman'da üst yarı hazır rakip, alt yarı eğitilen AI.
 3. Godot 4.7 API'si kullan (Godot 3 sözdizimi yok: `yield`, `onready var`, `export var` yasak; `await`, `@onready`, `@export` kullan). Tipli GDScript tercih et.
 4. `.tscn` dosyalarını elle düzenlerken `uid` ve `ExtResource` id'lerini bozma. Yeni script'ler için `.gd.uid` dosyasını Godot üretir, sen uydurma.
 5. Keystore, şifre, `export_credentials.cfg` asla commit edilmez.
@@ -39,6 +43,7 @@ Godot yolu `GODOT` ortam değişkeninde (örn. `C:/Godot/Godot_v4.7.2-stable_win
 ```bash
 "$GODOT" --headless --path . --import                       # import / parse kontrolü
 "$GODOT" --headless --path . --check-only --script res://scripts/main.gd   # tek script sözdizimi
+bash tools/run_golden.sh <fixture_klasörü> <çıktı> [referans]   # davranış koruma testi, user:// geçici klasöre yönlenir
 "$GODOT" --headless --path . --script res://tools/smoke_test.gd           # (Faz 2) tüm sahneleri yükler
 "$GODOT" --headless --path . --script res://tools/eval_ai.gd -- --level=2 --matches=200   # (Faz 2) AI değerlendirme
 ```

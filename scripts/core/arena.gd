@@ -128,7 +128,7 @@ static func direction_to_relative(new_dir: int, old_dir: int) -> int:
 
 
 static func distance(a: Vector2i, b: Vector2i) -> int:
-	return abs(a.x - b.x) + abs(a.y - b.y)
+	return absi(a.x - b.x) + absi(a.y - b.y)
 
 
 func is_blocked(pos: Vector2i, own_body: Array, other_body: Array) -> bool:
@@ -198,7 +198,7 @@ func compute_state(side: int) -> String:
 		bits |= 512
 	if opp_head.x > head.x:
 		bits |= 1024
-	var opp_dist: int = abs(opp_head.x - head.x) + abs(opp_head.y - head.y)
+	var opp_dist: int = absi(opp_head.x - head.x) + absi(opp_head.y - head.y)
 	if opp_dist <= 5:
 		bits |= 2048
 	if phase == 2:

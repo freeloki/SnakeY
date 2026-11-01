@@ -4,6 +4,8 @@ extends RefCounted
 ## Used by Tekli Oyun (single_player) and Hizli Antrenman (fast_train).
 ## Uses the global RNG (randf / randi) in a fixed order; keep it that way.
 
+const LADDER_PATH := "user://ladder_progress.json"
+
 
 ## Difficulty parameters for a level (1-100): {mistake, safety, aggression}.
 static func level_params(level: int) -> Dictionary:
@@ -53,20 +55,20 @@ static func decide(arena: SnakeArena, side: int, params: Dictionary) -> int:
 		return 0
 
 	if randf() < mistake:
-		var pick = candidates[randi() % candidates.size()]
+		var pick: Dictionary = candidates[randi() % candidates.size()]
 		return pick["action"]
 
 	var best_action: int = candidates[0]["action"]
 	var best_score := -INF
 	for c in candidates:
 		var np: Vector2i = c["pos"]
-		var food_dist: int = abs(np.x - target.x) + abs(np.y - target.y)
+		var food_dist: int = absi(np.x - target.x) + absi(np.y - target.y)
 		var s: float = -float(food_dist)
 		if safety > 0.0:
 			var space: int = flood_fill_count(arena, np, own_body, other_body)
 			s += safety * float(space) * 0.15
 		if aggression > 0.0 and arena.phase == 2:
-			var opp_dist: int = abs(np.x - opp_head.x) + abs(np.y - opp_head.y)
+			var opp_dist: int = absi(np.x - opp_head.x) + absi(np.y - opp_head.y)
 			s += aggression * (-float(opp_dist)) * 0.5
 		if s > best_score:
 			best_score = s
@@ -91,3 +93,22 @@ static func flood_fill_count(arena: SnakeArena, start: Vector2i, own_body: Array
 			visited[np] = true
 			queue.append(np)
 	return count
+
+
+## Reads the highest cleared ladder level from user://ladder_progress.json (0 if missing or invalid).
+static func load_highest_cleared() -> int:
+	if FileAccess.file_exists(LADDER_PATH):
+		var f := FileAccess.open(LADDER_PATH, FileAccess.READ)
+		if f:
+			var data = JSON.parse_string(f.get_as_text())
+			f.close()
+			if typeof(data) == TYPE_DICTIONARY and data.has("highest_cleared"):
+				return int(data["highest_cleared"])
+	return 0
+
+
+static func save_highest_cleared(value: int) -> void:
+	var f := FileAccess.open(LADDER_PATH, FileAccess.WRITE)
+	if f:
+		f.store_string(JSON.stringify({"highest_cleared": value}))
+		f.close()

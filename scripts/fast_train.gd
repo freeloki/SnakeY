@@ -1,10 +1,7 @@
 extends Node2D
 
-# Hizli Antrenman: kullanicinin egittigi yilan, hazir seviye rakiplerine karsi
-# arka arkaya cok sayida mac oynar (elle oynamaya gerek yok). Amac, ai_brain.json'a
-# kaydedilen Q-table'in cok daha kisa surede cok daha fazla deneyimle buyumesi.
-# Grid/Q-learning semasi scripts/single_player.gd ile birebir ayni (ayni beyni
-# paylasiyorlar).
+## Hizli Antrenman: the trained snake plays many back-to-back matches against the
+## ladder rival it is stuck on, saving its Q-table to ai_brain.json as it learns.
 
 const CELL_SIZE := 32
 const GRID_WIDTH := SnakeArena.GRID_WIDTH
@@ -13,8 +10,6 @@ const BARRIER_ROW := SnakeArena.BARRIER_ROW
 const PHASE2_DURATION := 30.0
 const MOVE_INTERVAL := 0.14
 const TURBO_TICKS_PER_FRAME := 15
-
-const LADDER_PATH := "user://ladder_progress.json"
 
 # Shared Q-learning brain (see scripts/core/brain.gd). The player model is read-only here.
 var brain := SnakeBrain.new()
@@ -59,7 +54,7 @@ func _ready() -> void:
 	randomize()
 	brain.load_brain()
 	brain.load_player_model()
-	_load_ladder_progress()
+	highest_cleared = PresetAI.load_highest_cleared()
 	_setup_setup_ui()
 	_setup_game_ui()
 	_show_setup()
@@ -377,7 +372,7 @@ func _after_match(trained_won: bool) -> void:
 
 	if trained_won and current_level > highest_cleared:
 		highest_cleared = current_level
-		_save_ladder_progress()
+		PresetAI.save_highest_cleared(highest_cleared)
 		current_level = min(100, highest_cleared + 1)
 		_apply_level_params()
 
@@ -420,7 +415,7 @@ func _update_timer_label() -> void:
 		remaining = max(remaining, 0)
 		timer_label.text = "Hazirlik: %ds" % remaining
 	else:
-		var remaining := int(ceil(SnakeArena.PHASE1_DURATION + PHASE2_DURATION - arena.elapsed))
+		var remaining := int(ceil(SnakeArena.PHASE1_DURATION + arena.phase2_duration - arena.elapsed))
 		remaining = max(remaining, 0)
 		timer_label.text = "Acik Saha: %ds" % remaining
 
@@ -481,26 +476,3 @@ func _draw_snake(body: Array, head_color: Color, body_color: Color) -> void:
 		var rect := Rect2(p.x * CELL_SIZE + 2, p.y * CELL_SIZE + 2, CELL_SIZE - 4, CELL_SIZE - 4)
 		var col := head_color if i == 0 else body_color
 		draw_rect(rect, col, true)
-
-
-# ---------------------------------------------------------------------------
-# Persistence (identical scheme to scripts/single_player.gd)
-# ---------------------------------------------------------------------------
-
-func _load_ladder_progress() -> void:
-	if FileAccess.file_exists(LADDER_PATH):
-		var f := FileAccess.open(LADDER_PATH, FileAccess.READ)
-		if f:
-			var data = JSON.parse_string(f.get_as_text())
-			f.close()
-			if typeof(data) == TYPE_DICTIONARY and data.has("highest_cleared"):
-				highest_cleared = int(data["highest_cleared"])
-
-
-func _save_ladder_progress() -> void:
-	var f := FileAccess.open(LADDER_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify({"highest_cleared": highest_cleared}))
-		f.close()
-
-

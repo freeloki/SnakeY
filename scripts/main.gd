@@ -1,4 +1,5 @@
 extends Node2D
+## Antrenman: the player (bottom) plays against the AI (top); the AI learns from the player.
 
 const CELL_SIZE := 32
 const GRID_WIDTH := SnakeArena.GRID_WIDTH
@@ -235,7 +236,7 @@ func _update_timer_label() -> void:
 		remaining = max(remaining, 0)
 		timer_label.text = "Hazirlik: %ds" % remaining
 	else:
-		var remaining := int(ceil(SnakeArena.PHASE1_DURATION + PHASE2_DURATION - arena.elapsed))
+		var remaining := int(ceil(SnakeArena.PHASE1_DURATION + arena.phase2_duration - arena.elapsed))
 		remaining = max(remaining, 0)
 		timer_label.text = "Acik Saha: %ds" % remaining
 
@@ -261,7 +262,7 @@ func _unhandled_input(event: InputEvent) -> void:
 	elif event is InputEventScreenDrag and touch_start_valid:
 		var delta: Vector2 = event.position - touch_start
 		if delta.length() > SWIPE_THRESHOLD:
-			if abs(delta.x) > abs(delta.y):
+			if absf(delta.x) > absf(delta.y):
 				_queue_direction(SnakeArena.Dir.RIGHT if delta.x > 0 else SnakeArena.Dir.LEFT)
 			else:
 				_queue_direction(SnakeArena.Dir.DOWN if delta.y > 0 else SnakeArena.Dir.UP)
