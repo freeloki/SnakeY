@@ -21,7 +21,7 @@ Akış:
 2. Godot editörü açıksa dosyalar diskte değiştiği için yeniden yüklemeyi sorar, **"Reload"** de.
 3. **F5** ile oyunu çalıştır, listeyi uygula.
 4. Claude'a sonucu yaz: "tamam, merge et" ya da "X'te şu oldu".
-5. Beğenmediysen sorun yok: `git switch main` ile eski hâline dönersin, hiçbir şey kaybolmaz.
+5. Beğenmediysen sorun yok: `git switch develop` ile eski hâline dönersin, hiçbir şey kaybolmaz.
 
 > **Not:** AI beyni `%APPDATA%\Godot\app_userdata\snakey\ai_brain.json` içinde, git'in dışında durur. Riskli AI denemelerinden önce bu klasörü yedekle (ai-trainer zaten otomatik yedek alacak).
 

@@ -15,3 +15,17 @@ export_credentials.cfg
 .mono/
 data_*/
 mono_crash.*.json
+
+# Android build ve imza anahtarlari - ASLA commit edilmez
+/android/
+/build/
+*.keystore
+*.jks
+*.apk
+*.aab
+
+# Claude Code kisisel ayarlari
+.claude/settings.local.json
+
+# Headless test/eval ciktilari
+/tools/out/

@@ -44,10 +44,12 @@ Godot yolu `GODOT` ortam değişkeninde (örn. `C:/Godot/Godot_v4.7.2-stable_win
 ```
 
 ## Git akışı
-- `main` her zaman çalışır durumda. Her görev ayrı dal: `feat/...`, `fix/...`, `refactor/...`, `ai/...`.
+- Uzak depo: `origin` = https://github.com/freeloki/SnakeY (public, MIT).
+- **`develop`**: günlük geliştirme dalı, her zaman çalışır durumda. **`main`**: yalnızca sürüm/yayın (Play Store'a giden hâl).
+- Her görev `develop`'tan açılan ayrı dal: `feat/...`, `fix/...`, `refactor/...`, `ai/...`.
 - Commit mesajı Türkçe, kısa başlık + gerekirse açıklama. Görev kimliğini ekle (örn. `[F1-2]`).
-- Commit öncesi: tester agent'ın headless kontrolleri geçmeli. `main`'e merge **Yavuz editörde test edip onay verdikten sonra**.
-- `git push`, dal silme, `reset --hard` gibi geri alınamaz işler için önce sor.
+- Commit öncesi: tester agent'ın headless kontrolleri geçmeli. Görev dalı `develop`'a **Yavuz editörde test edip onay verdikten sonra** merge edilir. `develop`'tan `main`'e merge sadece sürüm çıkarken yapılır.
+- `git push`, dal silme, `reset --hard` gibi geri alınamaz işler için önce sor. Depo public, bu yüzden gizli bilgi asla commit edilmez.
 
 ## Orkestrasyon (ana oturumun rolü)
 Ana oturum orkestratördür: `docs/ROADMAP.md`'den görevi alır, uygun agent'a verir, sonucu tester'a doğrulatır, reviewer'a okutur, commit atar ve ROADMAP'te görevi işaretler.
