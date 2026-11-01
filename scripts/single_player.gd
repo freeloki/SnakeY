@@ -14,9 +14,7 @@ var brain := SnakeBrain.new()
 var highest_cleared: int = 0
 
 var chosen_level: int = 1
-var preset_mistake_chance: float = 0.5
-var preset_safety_weight: float = 0.0
-var preset_aggression_weight: float = 0.0
+var preset_params: Dictionary = {"mistake": 0.5, "safety": 0.0, "aggression": 0.0}
 
 # Game rules (see scripts/core/arena.gd). TOP = preset rival, BOTTOM = trained snake.
 var arena := SnakeArena.new(PHASE2_DURATION, false)
@@ -137,7 +135,7 @@ func _setup_picker_ui() -> void:
 func _on_level_slider_changed(value: float) -> void:
 	chosen_level = int(value)
 	level_value_label.text = "Seviye %d" % chosen_level
-	level_tier_label.text = _level_tier_name(chosen_level)
+	level_tier_label.text = PresetAI.level_tier_name(chosen_level)
 
 
 func _show_picker() -> void:
@@ -158,33 +156,8 @@ func _show_picker() -> void:
 func _on_start_pressed() -> void:
 	picker_canvas.visible = false
 	game_canvas.visible = true
-	var params: Dictionary = _level_params(chosen_level)
-	preset_mistake_chance = params["mistake"]
-	preset_safety_weight = params["safety"]
-	preset_aggression_weight = params["aggression"]
+	preset_params = PresetAI.level_params(chosen_level)
 	_start_match()
-
-
-func _level_params(level: int) -> Dictionary:
-	var t: float = float(level - 1) / 99.0
-	var mistake: float = lerp(0.55, 0.0, t)
-	var safety: float = lerp(0.0, 1.0, t)
-	var aggro_t: float = clamp(float(level - 25) / 75.0, 0.0, 1.0)
-	var aggression: float = lerp(0.0, 1.0, aggro_t)
-	return {"mistake": mistake, "safety": safety, "aggression": aggression}
-
-
-func _level_tier_name(level: int) -> String:
-	if level <= 20:
-		return "Cok Kolay"
-	elif level <= 40:
-		return "Kolay"
-	elif level <= 60:
-		return "Orta"
-	elif level <= 80:
-		return "Zor"
-	else:
-		return "Cok Zor"
 
 
 # ---------------------------------------------------------------------------
@@ -284,66 +257,6 @@ func _process(delta: float) -> void:
 
 
 # ---------------------------------------------------------------------------
-# Preset ladder AI: deterministic, difficulty scales with the chosen level.
-# ---------------------------------------------------------------------------
-
-func _flood_fill_count(start: Vector2i, own_body: Array, other_body: Array) -> int:
-	var visited := {}
-	visited[start] = true
-	var queue: Array = [start]
-	var count := 0
-	while not queue.is_empty():
-		var cur: Vector2i = queue.pop_front()
-		count += 1
-		for d in [Vector2i(0, -1), Vector2i(0, 1), Vector2i(-1, 0), Vector2i(1, 0)]:
-			var np: Vector2i = cur + d
-			if visited.has(np):
-				continue
-			if arena.is_blocked(np, own_body, other_body):
-				continue
-			visited[np] = true
-			queue.append(np)
-	return count
-
-
-func _preset_decide() -> int:
-	var head: Vector2i = arena.snake_top[0]
-	var target: Vector2i = arena.target_for(SnakeArena.Side.TOP)
-	var opp_head: Vector2i = arena.snake_bottom[0]
-
-	var candidates: Array = []
-	for a in [0, 1, 2]:
-		var d: int = SnakeArena.relative_to_direction(a, arena.direction_top)
-		var np: Vector2i = head + SnakeArena.dir_vector(d)
-		if not arena.is_blocked(np, arena.snake_top, arena.snake_bottom):
-			candidates.append({"action": a, "pos": np})
-
-	if candidates.is_empty():
-		return 0
-
-	if randf() < preset_mistake_chance:
-		var pick = candidates[randi() % candidates.size()]
-		return pick["action"]
-
-	var best_action: int = candidates[0]["action"]
-	var best_score := -INF
-	for c in candidates:
-		var np: Vector2i = c["pos"]
-		var food_dist: int = abs(np.x - target.x) + abs(np.y - target.y)
-		var s: float = -float(food_dist)
-		if preset_safety_weight > 0.0:
-			var space: int = _flood_fill_count(np, arena.snake_top, arena.snake_bottom)
-			s += preset_safety_weight * float(space) * 0.15
-		if preset_aggression_weight > 0.0 and arena.phase == 2:
-			var opp_dist: int = abs(np.x - opp_head.x) + abs(np.y - opp_head.y)
-			s += preset_aggression_weight * (-float(opp_dist)) * 0.5
-		if s > best_score:
-			best_score = s
-			best_action = c["action"]
-	return best_action
-
-
-# ---------------------------------------------------------------------------
 # Tick: both snakes are AI-controlled.
 # ---------------------------------------------------------------------------
 
@@ -358,7 +271,7 @@ func _on_move_timer_timeout() -> void:
 	var action := brain.select_action(state)
 	var new_direction_trained := SnakeArena.relative_to_direction(action, arena.direction_bottom)
 
-	var preset_action := _preset_decide()
+	var preset_action := PresetAI.decide(arena, SnakeArena.Side.TOP, preset_params)
 	var new_direction_preset := SnakeArena.relative_to_direction(preset_action, arena.direction_top)
 
 	var result := arena.step(new_direction_preset, new_direction_trained)
@@ -449,7 +362,7 @@ func _ai_tier_name() -> String:
 
 
 func _update_ai_level_label() -> void:
-	ai_level_label.text = "Senin AI: %s (%d mac)  |  Seviye %d: %s" % [_ai_tier_name(), brain.games_played, chosen_level, _level_tier_name(chosen_level)]
+	ai_level_label.text = "Senin AI: %s (%d mac)  |  Seviye %d: %s" % [_ai_tier_name(), brain.games_played, chosen_level, PresetAI.level_tier_name(chosen_level)]
 
 
 func _update_timer_label() -> void:
