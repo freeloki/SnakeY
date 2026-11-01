@@ -1,41 +1,24 @@
 extends Node2D
 
 const CELL_SIZE := 32
-const GRID_WIDTH := 15
-const HALF_HEIGHT := 11
-const BARRIER_ROW := HALF_HEIGHT
-const GRID_HEIGHT := HALF_HEIGHT * 2 + 1
+const GRID_WIDTH := SnakeArena.GRID_WIDTH
+const GRID_HEIGHT := SnakeArena.GRID_HEIGHT
+const BARRIER_ROW := SnakeArena.BARRIER_ROW
 
-const PHASE1_DURATION := 5
-const PHASE2_DURATION := 10
+const PHASE2_DURATION := 10.0
 const MOVE_INTERVAL := 0.14
 const SWIPE_THRESHOLD := 24.0
 const SAVE_PATH := "user://snakey_save.json"
 
-enum Dir { UP, DOWN, LEFT, RIGHT }
-
-# Clockwise order (screen coords): UP -> RIGHT -> DOWN -> LEFT -> UP
-const CYCLE := [Dir.UP, Dir.RIGHT, Dir.DOWN, Dir.LEFT]
-
 # Shared Q-learning brain (see scripts/core/brain.gd).
 var brain := SnakeBrain.new()
 
-var snake_player: Array = []
-var snake_ai: Array = []
-var direction_player: int = Dir.RIGHT
-var pending_direction_player: int = Dir.RIGHT
-var direction_ai: int = Dir.RIGHT
+# Game rules (see scripts/core/arena.gd). TOP = AI, BOTTOM = player. Mirrored food.
+var arena := SnakeArena.new(PHASE2_DURATION, true)
+var pending_direction_player: int = SnakeArena.Dir.RIGHT
 
-var food_top: Vector2i
-var food_bottom: Vector2i
-var food_shared: Vector2i
-
-var score_player: int = 0
-var score_ai: int = 0
 var best_score: int = 0
 
-var phase: int = 1
-var elapsed: float = 0.0
 var match_over: bool = false
 
 var move_timer: Timer
@@ -117,32 +100,8 @@ func _setup_ui() -> void:
 
 func _start_match() -> void:
 	match_over = false
-	phase = 1
-	elapsed = 0.0
-	score_player = 0
-	score_ai = 0
-
-	direction_player = Dir.RIGHT
-	pending_direction_player = Dir.RIGHT
-	direction_ai = Dir.RIGHT
-
-	var mid_x := GRID_WIDTH / 2
-
-	snake_ai.clear()
-	var ai_row := HALF_HEIGHT / 2
-	snake_ai.append(Vector2i(mid_x, ai_row))
-	snake_ai.append(Vector2i(mid_x - 1, ai_row))
-	snake_ai.append(Vector2i(mid_x - 2, ai_row))
-
-	snake_player.clear()
-	var player_row := BARRIER_ROW + 1 + HALF_HEIGHT / 2
-	snake_player.append(Vector2i(mid_x, player_row))
-	snake_player.append(Vector2i(mid_x - 1, player_row))
-	snake_player.append(Vector2i(mid_x - 2, player_row))
-
-	var initial_food_pair := _spawn_mirrored_food_pair(snake_ai, snake_player)
-	food_top = initial_food_pair[0]
-	food_bottom = initial_food_pair[1]
+	arena.reset()
+	pending_direction_player = SnakeArena.Dir.RIGHT
 
 	move_timer.wait_time = MOVE_INTERVAL
 	move_timer.start()
@@ -160,226 +119,34 @@ func _start_match() -> void:
 func _process(delta: float) -> void:
 	if match_over:
 		return
-	elapsed += delta
-	if phase == 1 and elapsed >= PHASE1_DURATION:
-		_open_barrier()
-	elif phase == 2 and elapsed >= PHASE1_DURATION + PHASE2_DURATION:
+	var event := arena.advance_time(delta)
+	if event == SnakeArena.TimeEvent.BARRIER_OPENED:
+		queue_redraw()
+	elif event == SnakeArena.TimeEvent.TIME_UP:
 		_time_up()
 	_update_timer_label()
-
-
-func _open_barrier() -> void:
-	phase = 2
-	food_shared = _spawn_food_in_range(0, GRID_HEIGHT - 1, snake_player + snake_ai)
-	queue_redraw()
-
-
-func _spawn_food_in_range(row_min: int, row_max: int, exclude_cells: Array) -> Vector2i:
-	var free_cells: Array = []
-	for x in range(GRID_WIDTH):
-		for y in range(row_min, row_max + 1):
-			var p := Vector2i(x, y)
-			if not exclude_cells.has(p):
-				free_cells.append(p)
-	if free_cells.is_empty():
-		return Vector2i(-1, -1)
-	return free_cells[randi() % free_cells.size()]
-
-
-func _spawn_mirrored_food_pair(exclude_top: Array, exclude_bottom: Array) -> Array:
-	# Faz 1'de yem, ust ve alt yaridaki ayna noktalarinda (ayni sutun, barikata
-	# ayni mesafede) birlikte cikar; boylece AI'nin karsilastigi durum oyuncunun
-	# az once karsilastigi durumun simetrigi olur ve taklit ogrenme daha
-	# anlamli hale gelir.
-	var candidates: Array = []
-	for x in range(GRID_WIDTH):
-		for y in range(0, BARRIER_ROW):
-			var top := Vector2i(x, y)
-			var bottom := Vector2i(x, 2 * BARRIER_ROW - y)
-			if not exclude_top.has(top) and not exclude_bottom.has(bottom):
-				candidates.append([top, bottom])
-	if candidates.is_empty():
-		# Aynali bos hucre bulunamadi (cok nadir) - bagimsiz yerlestirmeye don.
-		var fallback_top: Vector2i = _spawn_food_in_range(0, BARRIER_ROW - 1, exclude_top)
-		var fallback_bottom: Vector2i = _spawn_food_in_range(BARRIER_ROW + 1, GRID_HEIGHT - 1, exclude_bottom)
-		return [fallback_top, fallback_bottom]
-	return candidates[randi() % candidates.size()]
-
-
-func _dir_vector(d: int) -> Vector2i:
-	match d:
-		Dir.UP:
-			return Vector2i(0, -1)
-		Dir.DOWN:
-			return Vector2i(0, 1)
-		Dir.LEFT:
-			return Vector2i(-1, 0)
-		Dir.RIGHT:
-			return Vector2i(1, 0)
-	return Vector2i.ZERO
-
-
-func _is_blocked(pos: Vector2i, own_body: Array, other_body: Array) -> bool:
-	if pos.x < 0 or pos.x >= GRID_WIDTH or pos.y < 0 or pos.y >= GRID_HEIGHT:
-		return true
-	if phase == 1 and pos.y == BARRIER_ROW:
-		return true
-	if own_body.has(pos):
-		return true
-	if phase == 2 and other_body.has(pos):
-		return true
-	return false
-
-
-# ---------------------------------------------------------------------------
-# AI: relative actions are 0=straight, 1=turn left, 2=turn right (never a
-# reversal, since only these three neighbours exist on the direction cycle).
-# ---------------------------------------------------------------------------
-
-func _relative_action_to_direction(action: int, heading: int) -> int:
-	var idx: int = CYCLE.find(heading)
-	if action == 0:
-		return heading
-	elif action == 1:
-		return CYCLE[(idx + 3) % 4]
-	else:
-		return CYCLE[(idx + 1) % 4]
-
-
-func _direction_to_relative_action(new_dir: int, old_dir: int) -> int:
-	if new_dir == old_dir:
-		return 0
-	var idx: int = CYCLE.find(old_dir)
-	if new_dir == CYCLE[(idx + 3) % 4]:
-		return 1
-	return 2
-
-
-func _danger_for_action(action: int) -> bool:
-	var d: int = _relative_action_to_direction(action, direction_ai)
-	var np: Vector2i = snake_ai[0] + _dir_vector(d)
-	return _is_blocked(np, snake_ai, snake_player)
-
-
-func _compute_state() -> String:
-	var head: Vector2i = snake_ai[0]
-	var target: Vector2i = food_top if phase == 1 else food_shared
-	var opp_head: Vector2i = snake_player[0]
-
-	var bits := 0
-	if _danger_for_action(0):
-		bits |= 1
-	if _danger_for_action(1):
-		bits |= 2
-	if _danger_for_action(2):
-		bits |= 4
-	if target.y < head.y:
-		bits |= 8
-	if target.y > head.y:
-		bits |= 16
-	if target.x < head.x:
-		bits |= 32
-	if target.x > head.x:
-		bits |= 64
-	if opp_head.y < head.y:
-		bits |= 128
-	if opp_head.y > head.y:
-		bits |= 256
-	if opp_head.x < head.x:
-		bits |= 512
-	if opp_head.x > head.x:
-		bits |= 1024
-	var opp_dist: int = abs(opp_head.x - head.x) + abs(opp_head.y - head.y)
-	if opp_dist <= 5:
-		bits |= 2048
-	if phase == 2:
-		bits |= 4096
-
-	return str(bits) + "_" + str(direction_ai)
-
-
-# --- Same state encoding, but computed generically so it can also describe
-# the PLAYER's situation (own head/heading/body vs opponent). This lets the
-# AI's imitation lookup directly compare "am I in a state the player has
-# also been in" using one shared key space. ---
-
-func _danger_for_body(head: Vector2i, heading: int, own_body: Array, other_body: Array, action: int) -> bool:
-	var d: int = _relative_action_to_direction(action, heading)
-	var np: Vector2i = head + _dir_vector(d)
-	return _is_blocked(np, own_body, other_body)
-
-
-func _compute_player_state(head: Vector2i, heading: int, opp_head: Vector2i, target: Vector2i) -> String:
-	var bits := 0
-	if _danger_for_body(head, heading, snake_player, snake_ai, 0):
-		bits |= 1
-	if _danger_for_body(head, heading, snake_player, snake_ai, 1):
-		bits |= 2
-	if _danger_for_body(head, heading, snake_player, snake_ai, 2):
-		bits |= 4
-	if target.y < head.y:
-		bits |= 8
-	if target.y > head.y:
-		bits |= 16
-	if target.x < head.x:
-		bits |= 32
-	if target.x > head.x:
-		bits |= 64
-	if opp_head.y < head.y:
-		bits |= 128
-	if opp_head.y > head.y:
-		bits |= 256
-	if opp_head.x < head.x:
-		bits |= 512
-	if opp_head.x > head.x:
-		bits |= 1024
-	var opp_dist: int = abs(opp_head.x - head.x) + abs(opp_head.y - head.y)
-	if opp_dist <= 5:
-		bits |= 2048
-	if phase == 2:
-		bits |= 4096
-	return str(bits) + "_" + str(heading)
 
 
 func _on_move_timer_timeout() -> void:
 	if match_over:
 		return
 
-	var player_old_direction: int = direction_player
-	var player_head_before: Vector2i = snake_player[0]
-	var ai_head_before_for_player_state: Vector2i = snake_ai[0]
-
-	direction_player = pending_direction_player
-
-	var target_ai: Vector2i = food_top if phase == 1 else food_shared
-	var target_player: Vector2i = food_bottom if phase == 1 else food_shared
-
 	# Learn from how the player is playing (imitation signal for the AI).
-	var player_state := _compute_player_state(player_head_before, player_old_direction, ai_head_before_for_player_state, target_player)
-	var player_action := _direction_to_relative_action(direction_player, player_old_direction)
+	# State and action use the heading from before this tick's pending input.
+	var player_state := arena.compute_state(SnakeArena.Side.BOTTOM)
+	var player_action := SnakeArena.direction_to_relative(pending_direction_player, arena.direction_bottom)
 	brain.record_player_choice(player_state, player_action)
 
-	var ai_head_before: Vector2i = snake_ai[0]
-	var old_dist: int = abs(ai_head_before.x - target_ai.x) + abs(ai_head_before.y - target_ai.y)
+	var target_ai: Vector2i = arena.target_for(SnakeArena.Side.TOP)
+	var old_dist: int = SnakeArena.distance(arena.head_of(SnakeArena.Side.TOP), target_ai)
 
-	var state := _compute_state()
+	var state := arena.compute_state(SnakeArena.Side.TOP)
 	var action := brain.select_action(state)
-	direction_ai = _relative_action_to_direction(action, direction_ai)
+	var new_direction_ai := SnakeArena.relative_to_direction(action, arena.direction_top)
 
-	var new_head_player: Vector2i = snake_player[0] + _dir_vector(direction_player)
-	var new_head_ai: Vector2i = snake_ai[0] + _dir_vector(direction_ai)
-
-	var player_crashed := _is_blocked(new_head_player, snake_player, snake_ai)
-	var ai_crashed := _is_blocked(new_head_ai, snake_ai, snake_player)
-
-	if new_head_player == new_head_ai:
-		player_crashed = true
-		ai_crashed = true
-	else:
-		if snake_ai.has(new_head_player):
-			player_crashed = true
-		if snake_player.has(new_head_ai):
-			ai_crashed = true
+	var result := arena.step(new_direction_ai, pending_direction_player)
+	var player_crashed: bool = result["bottom_crashed"]
+	var ai_crashed: bool = result["top_crashed"]
 
 	if player_crashed or ai_crashed:
 		var terminal_reward: float = brain.terminal_reward(ai_crashed)
@@ -387,35 +154,10 @@ func _on_move_timer_timeout() -> void:
 		_finish_round(player_crashed, ai_crashed)
 		return
 
-	snake_player.insert(0, new_head_player)
-	if new_head_player == target_player:
-		score_player += 1
-		if phase == 1:
-			var respawn_pair_a := _spawn_mirrored_food_pair(snake_ai, snake_player)
-			food_top = respawn_pair_a[0]
-			food_bottom = respawn_pair_a[1]
-		else:
-			food_shared = _spawn_food_in_range(0, GRID_HEIGHT - 1, snake_player + snake_ai)
-	else:
-		snake_player.pop_back()
+	var new_dist: int = SnakeArena.distance(arena.head_of(SnakeArena.Side.TOP), target_ai)
+	var reward: float = brain.step_reward(result["top_ate"], old_dist, new_dist)
 
-	var ai_ate: bool = new_head_ai == target_ai
-	snake_ai.insert(0, new_head_ai)
-	if ai_ate:
-		score_ai += 1
-		if phase == 1:
-			var respawn_pair_b := _spawn_mirrored_food_pair(snake_ai, snake_player)
-			food_top = respawn_pair_b[0]
-			food_bottom = respawn_pair_b[1]
-		else:
-			food_shared = _spawn_food_in_range(0, GRID_HEIGHT - 1, snake_player + snake_ai)
-	else:
-		snake_ai.pop_back()
-
-	var new_dist: int = abs(new_head_ai.x - target_ai.x) + abs(new_head_ai.y - target_ai.y)
-	var reward: float = brain.step_reward(ai_ate, old_dist, new_dist)
-
-	var next_state := _compute_state()
+	var next_state := arena.compute_state(SnakeArena.Side.TOP)
 	brain.update_q(state, action, reward, next_state, false)
 
 	_update_score_label()
@@ -425,9 +167,9 @@ func _on_move_timer_timeout() -> void:
 func _finish_round(player_crashed: bool, ai_crashed: bool) -> void:
 	var text := ""
 	if player_crashed and ai_crashed:
-		if score_player == score_ai:
+		if arena.score_bottom == arena.score_top:
 			text = "Carpisma - Berabere!"
-		elif score_player > score_ai:
+		elif arena.score_bottom > arena.score_top:
 			text = "Carpisma - Skorla Kazandin!"
 		else:
 			text = "Carpisma - Skorla Kaybettin!"
@@ -440,9 +182,9 @@ func _finish_round(player_crashed: bool, ai_crashed: bool) -> void:
 
 func _time_up() -> void:
 	var text := ""
-	if score_player == score_ai:
+	if arena.score_bottom == arena.score_top:
 		text = "Sure Doldu - Berabere!"
-	elif score_player > score_ai:
+	elif arena.score_bottom > arena.score_top:
 		text = "Sure Doldu - Kazandin!"
 	else:
 		text = "Sure Doldu - Kaybettin!"
@@ -453,8 +195,8 @@ func _end_match(result_text: String) -> void:
 	match_over = true
 	move_timer.stop()
 
-	if score_player > best_score:
-		best_score = score_player
+	if arena.score_bottom > best_score:
+		best_score = arena.score_bottom
 		_save_best_score()
 
 	brain.finish_match()
@@ -462,14 +204,14 @@ func _end_match(result_text: String) -> void:
 	brain.save_player_model()
 	_update_ai_level_label()
 
-	message_label.text = "%s\nSen: %d   Bot: %d" % [result_text, score_player, score_ai]
+	message_label.text = "%s\nSen: %d   Bot: %d" % [result_text, arena.score_bottom, arena.score_top]
 	message_label.visible = true
 	restart_button.visible = true
 	menu_button.visible = true
 
 
 func _update_score_label() -> void:
-	score_label.text = "Sen: %d   Bot: %d" % [score_player, score_ai]
+	score_label.text = "Sen: %d   Bot: %d" % [arena.score_bottom, arena.score_top]
 
 
 func _ai_tier_name() -> String:
@@ -488,12 +230,12 @@ func _update_ai_level_label() -> void:
 
 
 func _update_timer_label() -> void:
-	if phase == 1:
-		var remaining := int(ceil(PHASE1_DURATION - elapsed))
+	if arena.phase == 1:
+		var remaining := int(ceil(SnakeArena.PHASE1_DURATION - arena.elapsed))
 		remaining = max(remaining, 0)
 		timer_label.text = "Hazirlik: %ds" % remaining
 	else:
-		var remaining := int(ceil(PHASE1_DURATION + PHASE2_DURATION - elapsed))
+		var remaining := int(ceil(SnakeArena.PHASE1_DURATION + PHASE2_DURATION - arena.elapsed))
 		remaining = max(remaining, 0)
 		timer_label.text = "Acik Saha: %ds" % remaining
 
@@ -502,13 +244,13 @@ func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed:
 		match event.keycode:
 			KEY_UP, KEY_W:
-				_queue_direction(Dir.UP)
+				_queue_direction(SnakeArena.Dir.UP)
 			KEY_DOWN, KEY_S:
-				_queue_direction(Dir.DOWN)
+				_queue_direction(SnakeArena.Dir.DOWN)
 			KEY_LEFT, KEY_A:
-				_queue_direction(Dir.LEFT)
+				_queue_direction(SnakeArena.Dir.LEFT)
 			KEY_RIGHT, KEY_D:
-				_queue_direction(Dir.RIGHT)
+				_queue_direction(SnakeArena.Dir.RIGHT)
 
 	if event is InputEventScreenTouch:
 		if event.pressed:
@@ -520,20 +262,20 @@ func _unhandled_input(event: InputEvent) -> void:
 		var delta: Vector2 = event.position - touch_start
 		if delta.length() > SWIPE_THRESHOLD:
 			if abs(delta.x) > abs(delta.y):
-				_queue_direction(Dir.RIGHT if delta.x > 0 else Dir.LEFT)
+				_queue_direction(SnakeArena.Dir.RIGHT if delta.x > 0 else SnakeArena.Dir.LEFT)
 			else:
-				_queue_direction(Dir.DOWN if delta.y > 0 else Dir.UP)
+				_queue_direction(SnakeArena.Dir.DOWN if delta.y > 0 else SnakeArena.Dir.UP)
 			touch_start_valid = false
 
 
 func _queue_direction(new_dir: int) -> void:
 	var opposite := {
-		Dir.UP: Dir.DOWN,
-		Dir.DOWN: Dir.UP,
-		Dir.LEFT: Dir.RIGHT,
-		Dir.RIGHT: Dir.LEFT,
+		SnakeArena.Dir.UP: SnakeArena.Dir.DOWN,
+		SnakeArena.Dir.DOWN: SnakeArena.Dir.UP,
+		SnakeArena.Dir.LEFT: SnakeArena.Dir.RIGHT,
+		SnakeArena.Dir.RIGHT: SnakeArena.Dir.LEFT,
 	}
-	if new_dir != opposite.get(direction_player, -1):
+	if new_dir != opposite.get(arena.direction_bottom, -1):
 		pending_direction_player = new_dir
 
 
@@ -548,7 +290,7 @@ func _draw() -> void:
 			var col := Color(0.13, 0.15, 0.13) if (x + y) % 2 == 0 else Color(0.11, 0.13, 0.11)
 			draw_rect(rect, col)
 
-	if phase == 1:
+	if arena.phase == 1:
 		var barrier_rect := Rect2(0, BARRIER_ROW * CELL_SIZE, GRID_WIDTH * CELL_SIZE, CELL_SIZE)
 		draw_rect(barrier_rect, Color(0.55, 0.2, 0.2))
 	else:
@@ -558,14 +300,14 @@ func _draw() -> void:
 			draw_line(Vector2(x, line_y), Vector2(x + CELL_SIZE * 0.6, line_y), Color(0.4, 0.4, 0.4), 2.0)
 			x += CELL_SIZE
 
-	if phase == 1:
-		_draw_food(food_top)
-		_draw_food(food_bottom)
+	if arena.phase == 1:
+		_draw_food(arena.food_top)
+		_draw_food(arena.food_bottom)
 	else:
-		_draw_food(food_shared)
+		_draw_food(arena.food_shared)
 
-	_draw_snake(snake_ai, Color(0.55, 0.75, 1.0), Color(0.3, 0.5, 0.9))
-	_draw_snake(snake_player, Color(0.55, 0.95, 0.6), Color(0.25, 0.7, 0.3))
+	_draw_snake(arena.snake_top, Color(0.55, 0.75, 1.0), Color(0.3, 0.5, 0.9))
+	_draw_snake(arena.snake_bottom, Color(0.55, 0.95, 0.6), Color(0.25, 0.7, 0.3))
 
 
 func _draw_food(pos: Vector2i) -> void:
