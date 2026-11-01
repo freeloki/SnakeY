@@ -19,34 +19,10 @@ const TURBO_TICKS_PER_FRAME := 15
 enum Dir { UP, DOWN, LEFT, RIGHT }
 const CYCLE := [Dir.UP, Dir.RIGHT, Dir.DOWN, Dir.LEFT]
 
-# --- Q-learning brain: ayni dosya/format, scripts/main.gd ve
-# scripts/single_player.gd ile paylasiliyor. ---
-const AI_BRAIN_PATH := "user://ai_brain.json"
-const ALPHA := 0.2
-const GAMMA := 0.9
-const EPSILON_START := 0.35
-const EPSILON_MIN := 0.06
-const EPSILON_DECAY := 0.992
-
-const AI_DEATH_REWARD := -60.0
-const AI_WIN_REWARD := 60.0
-const AI_FOOD_REWARD := 15.0
-const AI_STEP_PENALTY := -0.05
-const AI_SHAPING_BONUS := 0.15
-const AI_SHAPING_PENALTY := -0.15
-
-const PLAYER_MODEL_PATH := "user://player_model.json"
-const IMITATION_WEIGHT_START := 1.0
-const IMITATION_DECAY := 0.994
-const IMITATION_SCALE := 35.0
-
 const LADDER_PATH := "user://ladder_progress.json"
 
-var q_table: Dictionary = {}
-var games_played: int = 0
-var epsilon: float = EPSILON_START
-var player_model: Dictionary = {}
-var imitation_weight: float = IMITATION_WEIGHT_START
+# Shared Q-learning brain (see scripts/core/brain.gd). The player model is read-only here.
+var brain := SnakeBrain.new()
 var highest_cleared: int = 0
 
 var current_level: int = 1
@@ -99,8 +75,8 @@ var menu_button: Button
 
 func _ready() -> void:
 	randomize()
-	_load_ai_brain()
-	_load_player_model()
+	brain.load_brain()
+	brain.load_player_model()
 	_load_ladder_progress()
 	_setup_setup_ui()
 	_setup_game_ui()
@@ -341,7 +317,7 @@ func _stop_session() -> void:
 	if not session_running:
 		return
 	session_running = false
-	_save_ai_brain()
+	brain.save_brain()
 
 	stop_button.visible = false
 	message_label.text = "Oturum durduruldu.\n%d/%d mac oynandi, %d galibiyet." % [session_matches_done, session_target, session_wins]
@@ -421,7 +397,7 @@ func _tick_once() -> void:
 	var old_dist: int = abs(trained_head_before.x - target_trained.x) + abs(trained_head_before.y - target_trained.y)
 
 	var state := _compute_trained_state(target_trained)
-	var action := _select_action(state)
+	var action := brain.select_action(state)
 	direction_trained = _relative_action_to_direction(action, direction_trained)
 
 	var preset_action := _preset_decide()
@@ -443,8 +419,8 @@ func _tick_once() -> void:
 			preset_crashed = true
 
 	if trained_crashed or preset_crashed:
-		var terminal_reward: float = AI_DEATH_REWARD if trained_crashed else AI_WIN_REWARD
-		_update_q(state, action, terminal_reward, "", true)
+		var terminal_reward: float = brain.terminal_reward(trained_crashed)
+		brain.update_q(state, action, terminal_reward, "", true)
 		_resolve_match_end(trained_crashed, preset_crashed)
 		return
 
@@ -469,20 +445,12 @@ func _tick_once() -> void:
 	else:
 		snake_trained.pop_back()
 
-	var reward: float
-	if trained_ate:
-		reward = AI_FOOD_REWARD
-	else:
-		var new_dist: int = abs(new_head_trained.x - target_trained.x) + abs(new_head_trained.y - target_trained.y)
-		reward = AI_STEP_PENALTY
-		if new_dist < old_dist:
-			reward += AI_SHAPING_BONUS
-		else:
-			reward += AI_SHAPING_PENALTY
+	var new_dist: int = abs(new_head_trained.x - target_trained.x) + abs(new_head_trained.y - target_trained.y)
+	var reward: float = brain.step_reward(trained_ate, old_dist, new_dist)
 
 	var next_target: Vector2i = food_bottom if phase == 1 else food_shared
 	var next_state := _compute_trained_state(next_target)
-	_update_q(state, action, reward, next_state, false)
+	brain.update_q(state, action, reward, next_state, false)
 
 
 func _open_barrier() -> void:
@@ -513,9 +481,7 @@ func _after_match(trained_won: bool) -> void:
 	if trained_won:
 		session_wins += 1
 
-	games_played += 1
-	_update_epsilon()
-	_update_imitation_weight()
+	brain.finish_match()
 
 	if trained_won and current_level > highest_cleared:
 		highest_cleared = current_level
@@ -524,7 +490,7 @@ func _after_match(trained_won: bool) -> void:
 		_apply_level_params()
 
 	if session_matches_done % 10 == 0:
-		_save_ai_brain()
+		brain.save_brain()
 
 	_update_session_label()
 	_update_level_label()
@@ -534,7 +500,7 @@ func _after_match(trained_won: bool) -> void:
 
 	if session_matches_done >= session_target:
 		session_running = false
-		_save_ai_brain()
+		brain.save_brain()
 		stop_button.visible = false
 		message_label.text = "Oturum bitti!\n%d mac, %d galibiyet (%%%.0f)\nUlasilan en yuksek seviye: %d" % [session_matches_done, session_wins, 100.0 * float(session_wins) / float(max(session_matches_done, 1)), highest_cleared]
 		message_label.visible = true
@@ -569,7 +535,7 @@ func _update_timer_label() -> void:
 
 func _on_menu_pressed() -> void:
 	session_running = false
-	_save_ai_brain()
+	brain.save_brain()
 	get_tree().change_scene_to_file("res://scenes/menu.tscn")
 
 
@@ -669,59 +635,6 @@ func _compute_trained_state(target: Vector2i) -> String:
 		bits |= 4096
 
 	return str(bits) + "_" + str(direction_trained)
-
-
-func _get_q(state: String) -> Array:
-	if q_table.has(state):
-		return q_table[state]
-	return [0.0, 0.0, 0.0]
-
-
-func _player_preference(state: String) -> Array:
-	if not player_model.has(state):
-		return [0.0, 0.0, 0.0]
-	var counts: Array = player_model[state]
-	var total: float = float(counts[0] + counts[1] + counts[2])
-	if total <= 0.0:
-		return [0.0, 0.0, 0.0]
-	return [counts[0] / total, counts[1] / total, counts[2] / total]
-
-
-func _select_action(state: String) -> int:
-	if randf() < epsilon:
-		return randi() % 3
-	var q: Array = _get_q(state)
-	var pref: Array = _player_preference(state)
-	var scores := [
-		q[0] + imitation_weight * IMITATION_SCALE * pref[0],
-		q[1] + imitation_weight * IMITATION_SCALE * pref[1],
-		q[2] + imitation_weight * IMITATION_SCALE * pref[2],
-	]
-	var best_action := 0
-	var best_value: float = scores[0]
-	if scores[1] > best_value:
-		best_value = scores[1]
-		best_action = 1
-	if scores[2] > best_value:
-		best_value = scores[2]
-		best_action = 2
-	return best_action
-
-
-func _update_q(state: String, action: int, reward: float, next_state: String, done: bool) -> void:
-	if not q_table.has(state):
-		q_table[state] = [0.0, 0.0, 0.0]
-	var q: Array = q_table[state]
-	var target_value: float = reward
-	if not done:
-		var next_q: Array = _get_q(next_state)
-		var max_next: float = next_q[0]
-		if next_q[1] > max_next:
-			max_next = next_q[1]
-		if next_q[2] > max_next:
-			max_next = next_q[2]
-		target_value += GAMMA * max_next
-	q[action] = q[action] + ALPHA * (target_value - q[action])
 
 
 # ---------------------------------------------------------------------------
@@ -840,42 +753,6 @@ func _draw_snake(body: Array, head_color: Color, body_color: Color) -> void:
 # Persistence (identical scheme to scripts/single_player.gd)
 # ---------------------------------------------------------------------------
 
-func _update_epsilon() -> void:
-	epsilon = clamp(EPSILON_START * pow(EPSILON_DECAY, games_played), EPSILON_MIN, EPSILON_START)
-
-
-func _update_imitation_weight() -> void:
-	imitation_weight = clamp(IMITATION_WEIGHT_START * pow(IMITATION_DECAY, games_played), 0.0, IMITATION_WEIGHT_START)
-
-
-func _load_ai_brain() -> void:
-	if FileAccess.file_exists(AI_BRAIN_PATH):
-		var f := FileAccess.open(AI_BRAIN_PATH, FileAccess.READ)
-		if f:
-			var data = JSON.parse_string(f.get_as_text())
-			f.close()
-			if typeof(data) == TYPE_DICTIONARY:
-				games_played = int(data.get("games_played", 0))
-				var raw_table = data.get("q_table", {})
-				if typeof(raw_table) == TYPE_DICTIONARY:
-					for key in raw_table.keys():
-						var arr = raw_table[key]
-						var q3 := [0.0, 0.0, 0.0]
-						if typeof(arr) == TYPE_ARRAY:
-							for i in range(min(3, arr.size())):
-								q3[i] = float(arr[i])
-						q_table[key] = q3
-	_update_epsilon()
-	_update_imitation_weight()
-
-
-func _save_ai_brain() -> void:
-	var f := FileAccess.open(AI_BRAIN_PATH, FileAccess.WRITE)
-	if f:
-		f.store_string(JSON.stringify({"games_played": games_played, "q_table": q_table}))
-		f.close()
-
-
 func _load_ladder_progress() -> void:
 	if FileAccess.file_exists(LADDER_PATH):
 		var f := FileAccess.open(LADDER_PATH, FileAccess.READ)
@@ -893,17 +770,3 @@ func _save_ladder_progress() -> void:
 		f.close()
 
 
-func _load_player_model() -> void:
-	if FileAccess.file_exists(PLAYER_MODEL_PATH):
-		var f := FileAccess.open(PLAYER_MODEL_PATH, FileAccess.READ)
-		if f:
-			var data = JSON.parse_string(f.get_as_text())
-			f.close()
-			if typeof(data) == TYPE_DICTIONARY:
-				for key in data.keys():
-					var arr = data[key]
-					var c3 := [0, 0, 0]
-					if typeof(arr) == TYPE_ARRAY:
-						for i in range(min(3, arr.size())):
-							c3[i] = int(arr[i])
-					player_model[key] = c3
