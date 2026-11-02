@@ -23,7 +23,7 @@ Neden: üç script'te ~1500 satır kopya kod var. Sabitler elle senkron tutuluyo
   - Karar (Yavuz): Antrenman'daki 10 sn bilinçli, testler hızlı olsun diye kısa tutuldu. Süreler korundu, her mod süresini `SnakeArena`'ya parametre verir. Yayın öncesi Antrenman süresi gözden geçirilecek.
 
 ## Faz 2: Test altyapısı
-- [ ] **F2-1** `tester`: `tools/smoke_test.gd` + `tools/run_smoke.sh`. Tüm sahneleri headless yükler, ~60 kare çalıştırır, hata varsa exit 1.
+- [x] **F2-1** `tester`: `tools/smoke_test.gd` + `tools/run_smoke.sh`. Tüm sahneleri headless yükler, ~60 kare çalıştırır, hata varsa exit 1.
 - [ ] **F2-2** `tester`: `tools/eval_ai.gd`. Beynin kopyasıyla, seed'li, N maç × seviye L simülasyonu (çizimsiz, gerçek zamandan bağımsız). Çıktı: `tools/out/eval_<tarih>.json` (kazanma %, ort. skor, ölüm nedeni dağılımı).
 - [ ] **F2-3** `tester`: `tests/` altında core birim testleri (çarpışma, aynalı yem, Q güncelleme). Tercihen gdUnit4, yoksa düz script.
 - [ ] **F2-4** Baz ölçüm: mevcut beyinle seviye 1-5 eval sonucu ROADMAP'e not edilir.
