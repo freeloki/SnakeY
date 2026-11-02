@@ -13,13 +13,14 @@ Her görev: **kimlik, sorumlu agent, kabul kriteri.** Orkestratör bitirdiği g�
 
 ## Faz 1: Ortak çekirdek (refactor, davranış değişmez)
 Neden: üç script'te ~1500 satır kopya kod var. Sabitler elle senkron tutuluyor ve headless test yazmak imkânsız, çünkü mantık `Node2D` + çizim + UI ile iç içe.
-- [ ] **F1-1** `gdscript-dev`: `scripts/core/brain.gd` (`class_name SnakeBrain`, RefCounted). Q-tablosu, epsilon, taklit ağırlığı, `select_action`, `update_q`, `load/save`. Sabitler tek yerde.
+- [x] **F1-1** `gdscript-dev`: `scripts/core/brain.gd` (`class_name SnakeBrain`, RefCounted). Q-tablosu, epsilon, taklit ağırlığı, `select_action`, `update_q`, `load/save`. Sabitler tek yerde.
   - Kabul: `ai_brain.json` formatı birebir aynı, mevcut kayıtla açılıyor.
-- [ ] **F1-2** `gdscript-dev`: `scripts/core/arena.gd`. Grid, yılan hareketi, çarpışma, yem spawn (aynalı dahil), faz/barikat, `step()`. Çizim ve input yok.
-- [ ] **F1-3** `gdscript-dev`: `scripts/core/preset_ai.gd`. `level_params`, `preset_decide`, `flood_fill_count`.
-- [ ] **F1-4** `gdscript-dev`: main / single_player / fast_train bu sınıfları kullanacak şekilde sadeleşir (sadece UI + çizim + input kalır).
-- [ ] **F1-5** `reviewer` + Yavuz manuel test: üç mod eskisi gibi oynanıyor.
+- [x] **F1-2** `gdscript-dev`: `scripts/core/arena.gd`. Grid, yılan hareketi, çarpışma, yem spawn (aynalı dahil), faz/barikat, `step()`. Çizim ve input yok.
+- [x] **F1-3** `gdscript-dev`: `scripts/core/preset_ai.gd`. `level_params`, `preset_decide`, `flood_fill_count`.
+- [x] **F1-4** `gdscript-dev`: main / single_player / fast_train bu sınıfları kullanacak şekilde sadeleşir (sadece UI + çizim + input kalır).
+- [x] **F1-5** `reviewer` + Yavuz manuel test: üç mod eskisi gibi oynanıyor.
 - [?] **F1-6** Faz süreleri tutarsız: `main.gd` 5 sn / 10 sn, `single_player` ve `fast_train` 5 sn / 30 sn. Bu bilinçli mi? Refactor sırasında tek değere mi indirilecek?
+  - Şimdilik korundu: her mod süresini `SnakeArena`'ya parametre verir. Karar açık.
 
 ## Faz 2: Test altyapısı
 - [ ] **F2-1** `tester`: `tools/smoke_test.gd`. Tüm sahneleri headless yükler, ~60 kare çalıştırır, hata varsa exit 1.
