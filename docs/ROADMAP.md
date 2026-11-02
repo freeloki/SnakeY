@@ -8,8 +8,8 @@ Her görev: **kimlik, sorumlu agent, kabul kriteri.** Orkestratör bitirdiği g�
 ## Faz 0: Altyapı
 - [x] **F0-1** git deposu, `origin` = freeloki/SnakeY, `develop` dalı üzerinde
 - [x] **F0-2** `CLAUDE.md`, `.claude/agents/*`, `.claude/settings.json`, bu dosya, `docs/TESTING.md`
-- [ ] **F0-3** (Yavuz) `GODOT` ortam değişkenini ayarla, `claude` ile proje klasöründe ilk oturumu aç → bkz. TESTING.md
-- [ ] **F0-4** (Yavuz) `develop`'u push et. Jira ihtiyacı sonra değerlendirilecek, gerekirse GitHub Issues kullanılır.
+- [x] **F0-3** (Yavuz) `GODOT` ortam değişkenini ayarla, `claude` ile proje klasöründe ilk oturumu aç → bkz. TESTING.md
+- [x] **F0-4** (Yavuz) `develop`'u push et. Jira ihtiyacı sonra değerlendirilecek, gerekirse GitHub Issues kullanılır.
 
 ## Faz 1: Ortak çekirdek (refactor, davranış değişmez)
 Neden: üç script'te ~1500 satır kopya kod var. Sabitler elle senkron tutuluyor ve headless test yazmak imkânsız, çünkü mantık `Node2D` + çizim + UI ile iç içe.
