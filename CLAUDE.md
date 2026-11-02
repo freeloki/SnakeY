@@ -44,7 +44,7 @@ Godot yolu `GODOT` ortam değişkeninde (örn. `C:/Godot/Godot_v4.7.2-stable_win
 "$GODOT" --headless --path . --import                       # import / parse kontrolü
 "$GODOT" --headless --path . --check-only --script res://scripts/main.gd   # tek script sözdizimi
 bash tools/run_golden.sh <fixture_klasörü> <çıktı> [referans]   # davranış koruma testi, user:// geçici klasöre yönlenir
-"$GODOT" --headless --path . --script res://tools/smoke_test.gd           # (Faz 2) tüm sahneleri yükler
+bash tools/run_smoke.sh                                     # tüm sahneleri yükler, user:// geçici klasöre yönlenir
 "$GODOT" --headless --path . --script res://tools/eval_ai.gd -- --level=2 --matches=200   # (Faz 2) AI değerlendirme
 ```
 
