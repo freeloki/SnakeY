@@ -6,7 +6,7 @@
 Godot'u pencere açmadan (headless) çalıştırarak:
 - parse/import hataları,
 - refactor'da davranış korunumu (`tools/run_golden.sh`),
-- tüm sahnelerin açılıp açılmadığı (`tools/smoke_test.gd`, Faz 2),
+- tüm sahnelerin açılıp açılmadığı (`tools/run_smoke.sh`),
 - AI kazanma oranı ölçümü (`tools/eval_ai.gd`, Faz 2).
 
 Sen bir şey yapmazsın. Agent'ın raporunda **GEÇTİ / KALDI** görürsün.

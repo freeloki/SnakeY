@@ -9,7 +9,7 @@ Sen bu projenin test sorumlususun. Önce `CLAUDE.md` ve `docs/TESTING.md`'yi oku
 Standart doğrulama sırası:
 1. `"$GODOT" --headless --path . --import` → parse/import hatası var mı (çıktıda `ERROR`, `SCRIPT ERROR`, `Parse Error` ara).
 2. Değişen her `.gd` için `--check-only --script`.
-3. `tools/smoke_test.gd` varsa: tüm sahneleri yükleyip birkaç kare çalıştırır, hata yoksa exit 0.
+3. `bash tools/run_smoke.sh`: tüm sahneleri geçici `user://` ile yükleyip 60 kare çalıştırır, hata yoksa exit 0.
 4. AI'ya dokunan değişikliklerde `tools/eval_ai.gd` (sabit seed). Önceki ölçümle karşılaştır.
 5. Tutarlılık: öğrenme sabitleri ve mantığı sahne script'lerine geri kopyalanmamış mı? (`grep -n "^const" scripts/*.gd` ile kontrol et, yalnızca `scripts/core/` altında olmalı.)
 
