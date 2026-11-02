@@ -24,16 +24,19 @@ Neden: üç script'te ~1500 satır kopya kod var. Sabitler elle senkron tutuluyo
 
 ## Faz 2: Test altyapısı
 - [x] **F2-1** `tester`: `tools/smoke_test.gd` + `tools/run_smoke.sh`. Tüm sahneleri headless yükler, ~60 kare çalıştırır, hata varsa exit 1.
-- [ ] **F2-2** `tester`: `tools/eval_ai.gd`. Beynin kopyasıyla, seed'li, N maç × seviye L simülasyonu (çizimsiz, gerçek zamandan bağımsız). Çıktı: `tools/out/eval_<tarih>.json` (kazanma %, ort. skor, ölüm nedeni dağılımı).
+- [x] **F2-2** `tester`: `tools/eval_ai.gd`. Beynin kopyasıyla, seed'li, N maç × seviye L simülasyonu (çizimsiz, gerçek zamandan bağımsız). Çıktı: `tools/out/eval_<tarih>.json` (kazanma %, ort. skor, ölüm nedeni dağılımı).
 - [ ] **F2-3** `tester`: `tests/` altında core birim testleri (çarpışma, aynalı yem, Q güncelleme). Tercihen gdUnit4, yoksa düz script.
-- [ ] **F2-4** Baz ölçüm: mevcut beyinle seviye 1-5 eval sonucu ROADMAP'e not edilir.
+- [x] **F2-4** Baz ölçüm: mevcut beyinle seviye 1-5 eval sonucu ROADMAP'e not edilir.
 
 ## Faz 3: AI iyileştirme (ölçüm odaklı)
-Sorun: 167+ maçta seviye 2 geçilemiyor.
+Sorun (F2-4 ölçümü): seviye 1-5'te kazanma %10-24; AI çoğunlukla duvara ve kendi gövdesine çarpıyor. Seviye tek galibiyetle geçildiği için `highest_cleared` beynin gücünü olduğundan yüksek gösterebilir.
 - [ ] **F3-1** `ai-trainer`: eğitimsiz beyinle "headless self-training" scripti (`tools/train_ai.gd`), parametre denemelerini dakikalar içinde yapmak için.
 - [?] **F3-2** `ai-trainer`: flood-fill / kaçış alanı bitleri ile durum v2. **Mevcut Q-tablosunu sıfırlar.** Yedek + versiyon + Yavuz onayı.
 - [ ] **F3-3** `ai-trainer`: ödül ve epsilon taraması, en iyi set eval ile seçilir.
 - [ ] **F3-4** Seviye eğrisi kalibrasyonu: hazır rakip seviyeleri gerçekten kademeli zorlaşıyor mu (seviye L vs L+1 eval).
+- [~] **F3-5** `ai-trainer`: hamle maskesi. Boş kare varken dolu kareye girilmez. Donmuş beyinle ölçüm: seviye 1-5 ~%12 → ~%68.
+- [ ] **F3-6** `ai-trainer`: oyuncu hamlelerinden öğrenme. Antrenman'daki hamleler ödül/cezasıyla Q-tablosuna işlenir. Etkisi oyuncu yerine geçen botla ölçülür.
+- [ ] **F3-7** `ai-trainer`: taklit azalması. Şu an her maçta azalıyor (1404 maçta etkisi ~0,0075 puan), Hızlı Antrenman maçları oyuncudan öğreneni söndürmemeli.
 
 ## Faz 4: Cila
 - [ ] **F4-1** Görsel tema (renk paleti, yılan/yem çizimi, barikat animasyonu)
@@ -61,4 +64,8 @@ Sorun: 167+ maçta seviye 2 geçilemiyor.
 ## Ölçüm günlüğü
 | Tarih | Görev | Seviye | Maç | Kazanma % | Not |
 |---|---|---|---|---|---|
-| | | | | | |
+| 2026-11-03 | F2-4 | 1 | 200 | 23.5 | Maskesiz baz, 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F2-4 | 2 | 200 | 11.5 | Maskesiz baz, 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F2-4 | 3 | 200 | 13.0 | Maskesiz baz, 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F2-4 | 4 | 200 | 10.0 | Maskesiz baz, 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F2-4 | 5 | 200 | 14.0 | Maskesiz baz, 1404 maçlık beyin, seed 1000 |
