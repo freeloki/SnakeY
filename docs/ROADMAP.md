@@ -19,8 +19,8 @@ Neden: üç script'te ~1500 satır kopya kod var. Sabitler elle senkron tutuluyo
 - [x] **F1-3** `gdscript-dev`: `scripts/core/preset_ai.gd`. `level_params`, `preset_decide`, `flood_fill_count`.
 - [x] **F1-4** `gdscript-dev`: main / single_player / fast_train bu sınıfları kullanacak şekilde sadeleşir (sadece UI + çizim + input kalır).
 - [x] **F1-5** `reviewer` + Yavuz manuel test: üç mod eskisi gibi oynanıyor.
-- [?] **F1-6** Faz süreleri tutarsız: `main.gd` 5 sn / 10 sn, `single_player` ve `fast_train` 5 sn / 30 sn. Bu bilinçli mi? Refactor sırasında tek değere mi indirilecek?
-  - Şimdilik korundu: her mod süresini `SnakeArena`'ya parametre verir. Karar açık.
+- [x] **F1-6** Faz süreleri tutarsız: `main.gd` 5 sn / 10 sn, `single_player` ve `fast_train` 5 sn / 30 sn. Bu bilinçli mi? Refactor sırasında tek değere mi indirilecek?
+  - Karar (Yavuz): Antrenman'daki 10 sn bilinçli, testler hızlı olsun diye kısa tutuldu. Süreler korundu, her mod süresini `SnakeArena`'ya parametre verir. Yayın öncesi Antrenman süresi gözden geçirilecek.
 
 ## Faz 2: Test altyapısı
 - [ ] **F2-1** `tester`: `tools/smoke_test.gd`. Tüm sahneleri headless yükler, ~60 kare çalıştırır, hata varsa exit 1.
