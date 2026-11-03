@@ -8,6 +8,8 @@ extends RefCounted
 const DEFAULT_BRAIN_PATH := "user://ai_brain.json"
 const DEFAULT_PLAYER_MODEL_PATH := "user://player_model.json"
 
+const ALL_ACTIONS: Array[int] = [0, 1, 2]
+
 const ALPHA := 0.2           # learning rate
 const GAMMA := 0.9           # discount factor
 const EPSILON_START := 0.35  # exploration rate for a brand new AI
@@ -59,25 +61,36 @@ func player_preference(state: String) -> Array:
 	return [counts[0] / total, counts[1] / total, counts[2] / total]
 
 
+## Picks an action, never a blocked one while a free one exists. Danger bits cover
+## blocked cells only, so a head-on crash with the rival stays possible.
 func select_action(state: String) -> int:
+	var candidates := _free_actions(state)
 	if randf() < epsilon:
-		return randi() % 3
+		return candidates[randi() % candidates.size()]
 	var q: Array = get_q(state)
 	var pref: Array = player_preference(state)
-	var scores := [
-		q[0] + imitation_weight * IMITATION_SCALE * pref[0],
-		q[1] + imitation_weight * IMITATION_SCALE * pref[1],
-		q[2] + imitation_weight * IMITATION_SCALE * pref[2],
-	]
-	var best_action := 0
-	var best_value: float = scores[0]
-	if scores[1] > best_value:
-		best_value = scores[1]
-		best_action = 1
-	if scores[2] > best_value:
-		best_value = scores[2]
-		best_action = 2
+	var best_action: int = candidates[0]
+	var best_value: float = -INF
+	for action in candidates:
+		var score: float = q[action] + imitation_weight * IMITATION_SCALE * pref[action]
+		if score > best_value:
+			best_value = score
+			best_action = action
 	return best_action
+
+
+## Actions whose danger bit is clear; all three if every action is blocked.
+## Key format "<bits>_<heading>" comes from SnakeArena.compute_state, where bit N
+## of <bits> is the danger of action N (0 = straight, 1 = left, 2 = right).
+func _free_actions(state: String) -> Array[int]:
+	var bits: int = state.get_slice("_", 0).to_int()
+	var free: Array[int] = []
+	for action in ALL_ACTIONS:
+		if bits & (1 << action) == 0:
+			free.append(action)
+	if free.is_empty():
+		return ALL_ACTIONS
+	return free
 
 
 func update_q(state: String, action: int, reward: float, next_state: String, done: bool) -> void:

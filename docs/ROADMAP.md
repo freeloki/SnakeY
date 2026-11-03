@@ -69,3 +69,10 @@ Sorun (F2-4 ölçümü): seviye 1-5'te kazanma %10-24; AI çoğunlukla duvara ve
 | 2026-11-03 | F2-4 | 3 | 200 | 13.0 | Maskesiz baz, 1404 maçlık beyin, seed 1000 |
 | 2026-11-03 | F2-4 | 4 | 200 | 10.0 | Maskesiz baz, 1404 maçlık beyin, seed 1000 |
 | 2026-11-03 | F2-4 | 5 | 200 | 14.0 | Maskesiz baz, 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F3-5 | 1 | 200 | 64.5 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F3-5 | 2 | 200 | 68.0 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F3-5 | 3 | 200 | 66.5 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F3-5 | 4 | 200 | 69.5 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F3-5 | 5 | 200 | 62.5 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F3-5 | 50 | 200 | 35.5 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
+| 2026-11-03 | F3-5 | 90 | 200 | 11.0 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
