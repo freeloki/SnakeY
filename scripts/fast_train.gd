@@ -18,6 +18,9 @@ var highest_cleared: int = 0
 var current_level: int = 1
 var preset_params: Dictionary = {"mistake": 0.5, "safety": 0.0, "aggression": 0.0}
 
+# Best-of-5 ladder series (see scripts/core/ladder_series.gd). In memory only, per session.
+var series := LadderSeries.new()
+
 # Game rules (see scripts/core/arena.gd). TOP = preset rival, BOTTOM = trained snake.
 var arena := SnakeArena.new(PHASE2_DURATION, false)
 
@@ -176,6 +179,7 @@ func _on_start_session_pressed() -> void:
 	session_running = true
 	session_matches_done = 0
 	session_wins = 0
+	series.reset()
 
 	message_label.visible = false
 	restart_button.visible = false
@@ -272,7 +276,7 @@ func _stop_session() -> void:
 	brain.save_brain()
 
 	stop_button.visible = false
-	message_label.text = "Oturum durduruldu.\n%d/%d mac oynandi, %d galibiyet." % [session_matches_done, session_target, session_wins]
+	message_label.text = "Oturum durduruldu.\n%d/%d mac oynandi, %d galibiyet.%s" % [session_matches_done, session_target, session_wins, _unfinished_series_note()]
 	message_label.visible = true
 	restart_button.visible = true
 	settings_button.visible = true
@@ -370,11 +374,14 @@ func _after_match(trained_won: bool) -> void:
 
 	brain.finish_match()
 
-	if trained_won and current_level > highest_cleared:
-		highest_cleared = current_level
-		PresetAI.save_highest_cleared(highest_cleared)
-		current_level = min(100, highest_cleared + 1)
-		_apply_level_params()
+	series.record(trained_won)
+	if series.is_finished():
+		if series.is_cleared() and current_level > highest_cleared:
+			highest_cleared = current_level
+			PresetAI.save_highest_cleared(highest_cleared)
+			current_level = min(100, highest_cleared + 1)
+			_apply_level_params()
+		series.reset()
 
 	if session_matches_done % 10 == 0:
 		brain.save_brain()
@@ -389,7 +396,7 @@ func _after_match(trained_won: bool) -> void:
 		session_running = false
 		brain.save_brain()
 		stop_button.visible = false
-		message_label.text = "Oturum bitti!\n%d mac, %d galibiyet (%%%.0f)\nUlasilan en yuksek seviye: %d" % [session_matches_done, session_wins, 100.0 * float(session_wins) / float(max(session_matches_done, 1)), highest_cleared]
+		message_label.text = "Oturum bitti!\n%d mac, %d galibiyet (%%%.0f)\nUlasilan en yuksek seviye: %d%s" % [session_matches_done, session_wins, 100.0 * float(session_wins) / float(max(session_matches_done, 1)), highest_cleared, _unfinished_series_note()]
 		message_label.visible = true
 		restart_button.visible = true
 		settings_button.visible = true
@@ -406,7 +413,14 @@ func _update_session_label() -> void:
 
 
 func _update_level_label() -> void:
-	level_label.text = "Seviye %d: %s   |   Yilanin: %d  Rakip: %d" % [current_level, PresetAI.level_tier_name(current_level), arena.score_bottom, arena.score_top]
+	level_label.text = "Seviye %d: %s   |   Yilanin: %d  Rakip: %d\n%s (5 macta 3 galibiyet = gecer)" % [current_level, PresetAI.level_tier_name(current_level), arena.score_bottom, arena.score_top, series.status_text()]
+
+
+## Extra message line when the session ends in the middle of a series (that series is discarded).
+func _unfinished_series_note() -> String:
+	if series.matches_played() == 0:
+		return ""
+	return "\nYarim kalan seri (%s) sayilmadi." % series.status_text()
 
 
 func _update_timer_label() -> void:
