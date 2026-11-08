@@ -17,6 +17,7 @@ Bu dosyayı her oturum ve her alt agent okur. Kısa ve güncel tutun.
 | `scripts/core/brain.gd` | `SnakeBrain`: Q-tablosu, öğrenme ve ödül sabitleri, taklit modeli, beyin kaydet/yükle |
 | `scripts/core/arena.gd` | `SnakeArena`: grid, hareket, çarpışma, yem, faz, durum kodlaması. Çizim ve input yok |
 | `scripts/core/preset_ai.gd` | `PresetAI`: seviye parametreleri, hazır rakip kararı, flood-fill, merdiven kaydı |
+| `scripts/core/ladder_series.gd` | `LadderSeries`: merdiven kuralı, 5 maçlık seride 3 galibiyet seviyeyi geçer (berabere = galibiyet değil). Sadece bellekte, kayıt formatı değişmez |
 | `tools/golden_trace.gd` + `tools/run_golden.sh` | Davranış koruma testi: aynı seed ile üç modun kayıt ve mesaj hash'ini karşılaştırır |
 | `docs/ROADMAP.md` | Faz planı ve görev listesi (tek doğruluk kaynağı) |
 | `docs/TESTING.md` | Test katmanları ve komutlar |

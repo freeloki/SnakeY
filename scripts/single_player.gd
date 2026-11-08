@@ -15,6 +15,9 @@ var highest_cleared: int = 0
 var chosen_level: int = 1
 var preset_params: Dictionary = {"mistake": 0.5, "safety": 0.0, "aggression": 0.0}
 
+# Best-of-5 ladder series for chosen_level (see scripts/core/ladder_series.gd). In memory only.
+var series := LadderSeries.new()
+
 # Game rules (see scripts/core/arena.gd). TOP = preset rival, BOTTOM = trained snake.
 var arena := SnakeArena.new(PHASE2_DURATION, false)
 
@@ -78,7 +81,7 @@ func _setup_picker_ui() -> void:
 	picker_canvas.add_child(title)
 
 	var subtitle := Label.new()
-	subtitle.text = "Egittigin yilani hazir AI'lara karsi test et.\nBir seviyeyi yenmeden bir sonrakine gecemezsin."
+	subtitle.text = "Egittigin yilani hazir AI'lara karsi test et.\nBir seviyeyi 5 maclik seride 3 galibiyetle gecersin."
 	subtitle.add_theme_font_size_override("font_size", 15)
 	subtitle.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	subtitle.size = Vector2(width, 50)
@@ -156,6 +159,7 @@ func _on_start_pressed() -> void:
 	picker_canvas.visible = false
 	game_canvas.visible = true
 	preset_params = PresetAI.level_params(chosen_level)
+	series.reset()
 	_start_match()
 
 
@@ -197,7 +201,7 @@ func _setup_game_ui() -> void:
 	game_canvas.add_child(message_label)
 
 	replay_button = Button.new()
-	replay_button.text = "Tekrar Oyna"
+	replay_button.text = "Sonraki Mac"
 	replay_button.visible = false
 	replay_button.custom_minimum_size = Vector2(180, 56)
 	replay_button.position = Vector2(width / 2.0 - 90, height / 2.0 - 10)
@@ -226,6 +230,9 @@ func _setup_game_ui() -> void:
 # ---------------------------------------------------------------------------
 
 func _start_match() -> void:
+	# Also the "next match" / "new series" button handler: a finished series restarts.
+	if series.is_finished():
+		series.reset()
 	match_over = false
 	match_running = true
 	arena.reset()
@@ -332,13 +339,24 @@ func _end_match(result_text: String, trained_won: bool) -> void:
 
 	brain.finish_match()
 	brain.save_brain()
-	_update_ai_level_label()
 
-	if trained_won and chosen_level > highest_cleared:
+	series.record(trained_won)
+	_update_ai_level_label()
+	if series.is_cleared() and chosen_level > highest_cleared:
 		highest_cleared = chosen_level
 		PresetAI.save_highest_cleared(highest_cleared)
 
-	message_label.text = "%s\nSeviye %d\nYilanin: %d   Rakip: %d" % [result_text, chosen_level, arena.score_bottom, arena.score_top]
+	var series_text := series.status_text()
+	if series.is_cleared():
+		series_text += " - SEVIYE GECILDI!"
+		replay_button.text = "Yeni Seri"
+	elif series.is_failed():
+		series_text += " - Seri kaybedildi."
+		replay_button.text = "Yeni Seri"
+	else:
+		replay_button.text = "Sonraki Mac"
+
+	message_label.text = "%s\nSeviye %d   Yilanin: %d   Rakip: %d\n%s" % [result_text, chosen_level, arena.score_bottom, arena.score_top, series_text]
 	message_label.visible = true
 	replay_button.visible = true
 	change_level_button.visible = true
@@ -361,7 +379,7 @@ func _ai_tier_name() -> String:
 
 
 func _update_ai_level_label() -> void:
-	ai_level_label.text = "Senin AI: %s (%d mac)  |  Seviye %d: %s" % [_ai_tier_name(), brain.games_played, chosen_level, PresetAI.level_tier_name(chosen_level)]
+	ai_level_label.text = "Senin AI: %s (%d mac)  |  Seviye %d: %s\n%s (5 macta 3 galibiyet = gecer)" % [_ai_tier_name(), brain.games_played, chosen_level, PresetAI.level_tier_name(chosen_level), series.status_text()]
 
 
 func _update_timer_label() -> void:
