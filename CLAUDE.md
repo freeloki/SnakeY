@@ -18,6 +18,8 @@ Bu dosyayı her oturum ve her alt agent okur. Kısa ve güncel tutun.
 | `scripts/core/arena.gd` | `SnakeArena`: grid, hareket, çarpışma, yem, faz, durum kodlaması. Çizim ve input yok |
 | `scripts/core/preset_ai.gd` | `PresetAI`: seviye parametreleri, hazır rakip kararı, flood-fill, merdiven kaydı |
 | `scripts/core/ladder_series.gd` | `LadderSeries`: merdiven kuralı, 5 maçlık seride 3 galibiyet seviyeyi geçer (berabere = galibiyet değil). Sadece bellekte, kayıt formatı değişmez |
+| `tools/match_sim.gd` | eval_ai ve train_ai'nin ortak çizimsiz maç döngüsü (preload, `class_name` yok). Öğrenme sırası `fast_train._tick_once` ile aynı tutulmalı |
+| `tools/train_ai.gd` | Headless self-training: seed'li, deterministik; `--set=` ile `SnakeBrain.configure()` üzerinden parametre override. user://'a yazmaz, çıktı tools/out/ |
 | `tools/golden_trace.gd` + `tools/run_golden.sh` | Davranış koruma testi: aynı seed ile üç modun kayıt ve mesaj hash'ini karşılaştırır |
 | `docs/ROADMAP.md` | Faz planı ve görev listesi (tek doğruluk kaynağı) |
 | `docs/TESTING.md` | Test katmanları ve komutlar |
@@ -47,6 +49,7 @@ Godot yolu `GODOT` ortam değişkeninde (örn. `C:/Godot/Godot_v4.7.2-stable_win
 bash tools/run_golden.sh <fixture_klasörü> <çıktı> [referans]   # davranış koruma testi, user:// geçici klasöre yönlenir
 bash tools/run_smoke.sh                                     # tüm sahneleri yükler, user:// geçici klasöre yönlenir
 "$GODOT" --headless --path . --script res://tools/eval_ai.gd -- --level=2 --matches=200   # AI değerlendirme, salt okunur; çıktı tools/out/
+"$GODOT" --headless --path . --script res://tools/train_ai.gd -- --level=1 --matches=3000 --seed=1 --eval-every=500 --out=res://tools/out/deneme.json   # boş beyinle eğitim; --ladder, --set=alpha=0.3,...
 ```
 
 ## Git akışı

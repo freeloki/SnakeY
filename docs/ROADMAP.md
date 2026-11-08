@@ -30,7 +30,7 @@ Neden: üç script'te ~1500 satır kopya kod var. Sabitler elle senkron tutuluyo
 
 ## Faz 3: AI iyileştirme (ölçüm odaklı)
 Sorun (F2-4 ölçümü): seviye 1-5'te kazanma %10-24; AI çoğunlukla duvara ve kendi gövdesine çarpıyor. Eski kuralda seviye tek galibiyetle geçildiği için `highest_cleared` beynin gücünü olduğundan yüksek gösteriyordu (F3-8).
-- [ ] **F3-1** `ai-trainer`: eğitimsiz beyinle "headless self-training" scripti (`tools/train_ai.gd`), parametre denemelerini dakikalar içinde yapmak için.
+- [~] **F3-1** `ai-trainer`: eğitimsiz beyinle "headless self-training" scripti (`tools/train_ai.gd`), parametre denemelerini dakikalar içinde yapmak için.
 - [?] **F3-2** `ai-trainer`: flood-fill / kaçış alanı bitleri ile durum v2. **Mevcut Q-tablosunu sıfırlar.** Yedek + versiyon + Yavuz onayı.
 - [ ] **F3-3** `ai-trainer`: ödül ve epsilon taraması, en iyi set eval ile seçilir.
 - [ ] **F3-4** Seviye eğrisi kalibrasyonu: hazır rakip seviyeleri gerçekten kademeli zorlaşıyor mu (seviye L vs L+1 eval).
@@ -77,3 +77,9 @@ Sorun (F2-4 ölçümü): seviye 1-5'te kazanma %10-24; AI çoğunlukla duvara ve
 | 2026-11-03 | F3-5 | 5 | 200 | 62.5 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
 | 2026-11-03 | F3-5 | 50 | 200 | 35.5 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
 | 2026-11-03 | F3-5 | 90 | 200 | 11.0 | Maskeli, aynı 1404 maçlık beyin, seed 1000 |
+| 2026-11-08 | F3-1 | 1 | 200 | 16.5 | Boş beyin, eğitimsiz (train_ai ölçümü, taklitsiz), seed 1000 |
+| 2026-11-08 | F3-1 | 1 | 200 | 64.5 | Boş beyin + train_ai 3000 maç seviye 1, taklitsiz; 3 eğitim seed'i ort. (64.0 / 62.5 / 67.0), eval seed 1000 |
+| 2026-11-08 | F3-1 | 2 | 200 | 64.7 | Aynı 3 beyin ort. (70.0 / 58.0 / 66.0), eval seed 1000 |
+| 2026-11-08 | F3-1 | 3 | 200 | 65.0 | Aynı 3 beyin ort. (63.0 / 62.0 / 70.0), eval seed 1000 |
+| 2026-11-08 | F3-1 | 4 | 200 | 65.3 | Aynı 3 beyin ort. (64.0 / 64.0 / 68.0), eval seed 1000 |
+| 2026-11-08 | F3-1 | 5 | 200 | 63.5 | Aynı 3 beyin ort. (62.5 / 63.0 / 65.0), eval seed 1000 |
