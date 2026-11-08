@@ -37,7 +37,7 @@ Sorun (F2-4 ölçümü): seviye 1-5'te kazanma %10-24; AI çoğunlukla duvara ve
 - [x] **F3-5** `ai-trainer`: hamle maskesi. Boş kare varken dolu kareye girilmez. Donmuş beyinle ölçüm: seviye 1-5 ~%12 → ~%68.
 - [ ] **F3-6** `ai-trainer`: oyuncu hamlelerinden öğrenme. Antrenman'daki hamleler ödül/cezasıyla Q-tablosuna işlenir. Etkisi oyuncu yerine geçen botla ölçülür.
 - [ ] **F3-7** `ai-trainer`: taklit azalması. Şu an her maçta azalıyor (1404 maçta etkisi ~0,0075 puan), Hızlı Antrenman maçları oyuncudan öğreneni söndürmemeli.
-- [~] **F3-8** `gdscript-dev`: seviye geçme kuralı. 5 maçlık seride 3 galibiyet, berabere galibiyet sayılmaz. Mevcut `highest_cleared` korunur.
+- [x] **F3-8** `gdscript-dev`: seviye geçme kuralı. 5 maçlık seride 3 galibiyet, berabere galibiyet sayılmaz. Mevcut `highest_cleared` korunur.
 
 ## Faz 4: Cila
 - [ ] **F4-1** Görsel tema (renk paleti, yılan/yem çizimi, barikat animasyonu)
