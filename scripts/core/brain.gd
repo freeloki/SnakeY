@@ -30,6 +30,24 @@ const IMITATION_WEIGHT_START := 1.0
 const IMITATION_DECAY := 0.994
 const IMITATION_SCALE := 35.0
 
+# Tunable learning parameters. They start as the constants above and only differ
+# when a tool calls configure() (e.g. tools/train_ai.gd parameter sweeps). The
+# game modes never call it, so their behaviour is exactly the constants.
+var alpha: float = ALPHA
+var gamma: float = GAMMA
+var epsilon_start: float = EPSILON_START
+var epsilon_min: float = EPSILON_MIN
+var epsilon_decay: float = EPSILON_DECAY
+var death_reward: float = AI_DEATH_REWARD
+var win_reward: float = AI_WIN_REWARD
+var food_reward: float = AI_FOOD_REWARD
+var step_penalty: float = AI_STEP_PENALTY
+var shaping_bonus: float = AI_SHAPING_BONUS
+var shaping_penalty: float = AI_SHAPING_PENALTY
+var imitation_weight_start: float = IMITATION_WEIGHT_START
+var imitation_decay: float = IMITATION_DECAY
+var imitation_scale: float = IMITATION_SCALE
+
 var q_table: Dictionary = {}
 var games_played: int = 0
 var epsilon: float = EPSILON_START
@@ -43,6 +61,48 @@ var player_model_path: String
 func _init(p_brain_path: String = DEFAULT_BRAIN_PATH, p_player_model_path: String = DEFAULT_PLAYER_MODEL_PATH) -> void:
 	brain_path = p_brain_path
 	player_model_path = p_player_model_path
+
+
+## Names accepted by configure(), i.e. the tunable variables above.
+static func tunable_names() -> PackedStringArray:
+	return PackedStringArray([
+		"alpha", "gamma", "epsilon_start", "epsilon_min", "epsilon_decay",
+		"death_reward", "win_reward", "food_reward", "step_penalty",
+		"shaping_bonus", "shaping_penalty",
+		"imitation_weight_start", "imitation_decay", "imitation_scale",
+	])
+
+
+## Current value of every tunable parameter, {name: float}.
+func tunables() -> Dictionary:
+	var out := {}
+	for n in tunable_names():
+		out[n] = float(get(n))
+	return out
+
+
+## Optional override of learning parameters, {name: float}. For tools only (the
+## game modes never call this). Returns "" on success or an error message; on an
+## error nothing is changed. Refreshes epsilon and imitation weight afterwards.
+func configure(overrides: Dictionary) -> String:
+	var names := tunable_names()
+	for key in overrides.keys():
+		if not names.has(str(key)):
+			return "unknown brain parameter '%s' (known: %s)" % [str(key), ", ".join(names)]
+		var t := typeof(overrides[key])
+		if t != TYPE_FLOAT and t != TYPE_INT:
+			return "brain parameter '%s' must be a number" % str(key)
+	var eps_start: float = float(overrides.get("epsilon_start", epsilon_start))
+	var eps_min: float = float(overrides.get("epsilon_min", epsilon_min))
+	if eps_min > eps_start:
+		return "epsilon_min (%s) must not exceed epsilon_start (%s)" % [str(eps_min), str(eps_start)]
+	if float(overrides.get("imitation_weight_start", imitation_weight_start)) < 0.0:
+		return "imitation_weight_start must be >= 0 (its floor is 0)"
+	for key in overrides.keys():
+		set(str(key), float(overrides[key]))
+	_update_epsilon()
+	_update_imitation_weight()
+	return ""
 
 
 func get_q(state: String) -> Array:
@@ -72,7 +132,7 @@ func select_action(state: String) -> int:
 	var best_action: int = candidates[0]
 	var best_value: float = -INF
 	for action in candidates:
-		var score: float = q[action] + imitation_weight * IMITATION_SCALE * pref[action]
+		var score: float = q[action] + imitation_weight * imitation_scale * pref[action]
 		if score > best_value:
 			best_value = score
 			best_action = action
@@ -105,8 +165,8 @@ func update_q(state: String, action: int, reward: float, next_state: String, don
 			max_next = next_q[1]
 		if next_q[2] > max_next:
 			max_next = next_q[2]
-		target_value += GAMMA * max_next
-	q[action] = q[action] + ALPHA * (target_value - q[action])
+		target_value += gamma * max_next
+	q[action] = q[action] + alpha * (target_value - q[action])
 
 
 func record_player_choice(state: String, action: int) -> void:
@@ -120,19 +180,19 @@ func record_player_choice(state: String, action: int) -> void:
 func step_reward(ate: bool, old_dist: int, new_dist: int) -> float:
 	var reward: float
 	if ate:
-		reward = AI_FOOD_REWARD
+		reward = food_reward
 	else:
-		reward = AI_STEP_PENALTY
+		reward = step_penalty
 		if new_dist < old_dist:
-			reward += AI_SHAPING_BONUS
+			reward += shaping_bonus
 		else:
-			reward += AI_SHAPING_PENALTY
+			reward += shaping_penalty
 	return reward
 
 
 ## Reward for the AI at a terminal step: death if the AI crashed, win otherwise.
 func terminal_reward(crashed: bool) -> float:
-	return AI_DEATH_REWARD if crashed else AI_WIN_REWARD
+	return death_reward if crashed else win_reward
 
 
 ## Call once per finished match: counts the match, then refreshes the decays.
@@ -143,11 +203,11 @@ func finish_match() -> void:
 
 
 func _update_epsilon() -> void:
-	epsilon = clamp(EPSILON_START * pow(EPSILON_DECAY, games_played), EPSILON_MIN, EPSILON_START)
+	epsilon = clamp(epsilon_start * pow(epsilon_decay, games_played), epsilon_min, epsilon_start)
 
 
 func _update_imitation_weight() -> void:
-	imitation_weight = clamp(IMITATION_WEIGHT_START * pow(IMITATION_DECAY, games_played), 0.0, IMITATION_WEIGHT_START)
+	imitation_weight = clamp(imitation_weight_start * pow(imitation_decay, games_played), 0.0, imitation_weight_start)
 
 
 func load_brain() -> void:

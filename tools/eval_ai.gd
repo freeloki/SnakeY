@@ -13,10 +13,9 @@ extends SceneTree
 # Exit codes: 0 = pass, 1 = failure (bad brain file, runtime error, classifier
 # drift, tick guard), 2 = bad arguments.
 #
-# Match loop: this MUST stay in step with scripts/fast_train.gd (_tick_once).
-# Order inside a tick: advance_time -> trained decision -> rival decision -> step.
-# MOVE_INTERVAL and PHASE2_DURATION below are copies of fast_train.gd constants;
-# _check_loop_constants() compares them with the real script at startup.
+# Match loop: tools/match_sim.gd (shared with tools/train_ai.gd), which MUST stay
+# in step with scripts/fast_train.gd (_tick_once). Here it always runs with
+# learn=false. Its loop constants are compared with fast_train.gd at startup.
 
 const USAGE := """Usage: godot --headless --path . --script res://tools/eval_ai.gd -- [options]
   --level=N              one ladder level (1-100)        } exactly one of
@@ -31,42 +30,19 @@ const USAGE := """Usage: godot --headless --path . --script res://tools/eval_ai.
   --per-match            also store every match (outcome, scores, ticks) in the JSON
 Exit codes: 0 ok, 1 failure, 2 bad arguments."""
 
+const MatchSim := preload("res://tools/match_sim.gd")
+
 const DEFAULT_SEED := 1000
 const DEFAULT_MATCHES := 200
-const MOVE_INTERVAL := 0.14
-const PHASE2_DURATION := 30.0
+const MOVE_INTERVAL := MatchSim.MOVE_INTERVAL
+const PHASE2_DURATION := MatchSim.PHASE2_DURATION
 const OUT_DIR := "res://tools/out"
-const FAST_TRAIN_SCRIPT := "res://scripts/fast_train.gd"
-
-const CAUSES := ["wall", "barrier", "self", "other_snake_body", "head_on", "time_up", "survived"]
-const WILSON_Z := 1.96
 
 const EXIT_FAIL := 1
 const EXIT_USAGE := 2
 
 
-# Collects engine and script errors (a GDScript runtime error does not change
-# Godot's exit code, see tools/smoke_test.gd). Callbacks may come from other threads.
-class ErrorCollector extends Logger:
-	var mutex := Mutex.new()
-	var errors: Array[String] = []
-
-	func _log_error(function: String, file: String, line: int, code: String, rationale: String, _editor_notify: bool, error_type: int, _script_backtraces: Array[ScriptBacktrace]) -> void:
-		if error_type == ERROR_TYPE_WARNING:
-			return
-		var text := rationale if not rationale.is_empty() else code
-		mutex.lock()
-		errors.append("%s:%d (%s): %s" % [file, line, function, text])
-		mutex.unlock()
-
-	func snapshot() -> Array[String]:
-		mutex.lock()
-		var out: Array[String] = errors.duplicate()
-		mutex.unlock()
-		return out
-
-
-var _collector := ErrorCollector.new()
+var _collector := MatchSim.ErrorCollector.new()
 # -1 until _run reaches a deliberate verdict. If _run aborts on a runtime error
 # it stays -1 and _finish treats that as a failure.
 var _status: int = -1
@@ -121,11 +97,13 @@ func _run() -> void:
 		_status = EXIT_USAGE
 		return
 
-	if not _check_loop_constants():
+	var drift := MatchSim.check_loop_constants()
+	if not drift.is_empty():
+		_fail(drift)
 		return
 
 	var out_dir := ProjectSettings.globalize_path(OUT_DIR)
-	if _is_inside_user_dir(out_dir):
+	if MatchSim.is_inside_user_dir(out_dir):
 		_fail("output dir resolves inside user://, refusing: " + out_dir)
 		return
 
@@ -140,7 +118,7 @@ func _run() -> void:
 	var eps_before: float = brain.epsilon
 	var imit_before: float = brain.imitation_weight
 
-	_max_ticks = int(ceil((SnakeArena.PHASE1_DURATION + PHASE2_DURATION) / MOVE_INTERVAL)) + 5
+	_max_ticks = MatchSim.max_ticks()
 
 	var results: Array = []
 	for level in cfg["levels"]:
@@ -167,22 +145,6 @@ func _run() -> void:
 		return
 	print("JSON: ", path)
 	_status = 0
-
-
-## Compares our copies of the loop constants with the real fast_train.gd.
-func _check_loop_constants() -> bool:
-	var script := load(FAST_TRAIN_SCRIPT) as Script
-	if script == null:
-		_fail("cannot load " + FAST_TRAIN_SCRIPT + " to verify loop constants")
-		return false
-	var consts: Dictionary = script.get_script_constant_map()
-	if not consts.has("MOVE_INTERVAL") or not is_equal_approx(float(consts["MOVE_INTERVAL"]), MOVE_INTERVAL):
-		_fail("MOVE_INTERVAL drifted from fast_train.gd (%s vs %s)" % [str(consts.get("MOVE_INTERVAL")), str(MOVE_INTERVAL)])
-		return false
-	if not consts.has("PHASE2_DURATION") or not is_equal_approx(float(consts["PHASE2_DURATION"]), PHASE2_DURATION):
-		_fail("PHASE2_DURATION drifted from fast_train.gd (%s vs %s)" % [str(consts.get("PHASE2_DURATION")), str(PHASE2_DURATION)])
-		return false
-	return true
 
 
 func _load_brain(cfg: Dictionary) -> SnakeBrain:
@@ -216,7 +178,7 @@ func _eval_level(level: int, cfg: Dictionary, brain: SnakeBrain) -> Dictionary:
 	seed(int(cfg["seed"]) + level)
 	var params := PresetAI.level_params(level)
 	# Same layout as Hizli Antrenman: rival TOP, trained BOTTOM, independent food.
-	var arena := SnakeArena.new(PHASE2_DURATION, false)
+	var arena := MatchSim.new_arena()
 
 	var n: int = cfg["matches"]
 	var wins := 0
@@ -226,13 +188,14 @@ func _eval_level(level: int, cfg: Dictionary, brain: SnakeBrain) -> Dictionary:
 	var sum_trained := 0
 	var sum_rival := 0
 	var sum_ticks := 0
-	var trained_causes := _zero_causes()
-	var rival_causes := _zero_causes()
+	var trained_causes := MatchSim.zero_causes()
+	var rival_causes := MatchSim.zero_causes()
 	var sequence: Array = []
 
 	for i in range(n):
-		var m := _play_match(arena, brain, params)
-		if _status == EXIT_FAIL:
+		var m := MatchSim.play_match(arena, brain, params, _max_ticks, false)
+		if m.has("error"):
+			_fail(m["error"])
 			return {}
 		match m["outcome"]:
 			"W":
@@ -251,7 +214,7 @@ func _eval_level(level: int, cfg: Dictionary, brain: SnakeBrain) -> Dictionary:
 		if cfg["per_match"]:
 			sequence.append([m["outcome"], m["score_trained"], m["score_rival"], m["ticks"]])
 
-	var wilson := _wilson(wins, n)
+	var wilson := MatchSim.wilson(wins, n)
 	var res := {
 		"level": level,
 		"matches": n,
@@ -270,142 +233,6 @@ func _eval_level(level: int, cfg: Dictionary, brain: SnakeBrain) -> Dictionary:
 	if cfg["per_match"]:
 		res["match_log"] = sequence
 	return res
-
-
-## Plays one match. Mirrors fast_train.gd:_tick_once without any learning.
-func _play_match(arena: SnakeArena, brain: SnakeBrain, params: Dictionary) -> Dictionary:
-	arena.reset()
-	var ticks := 0
-	var time_up := false
-	var trained_crashed := false
-	var rival_crashed := false
-	var trained_cause := ""
-	var rival_cause := ""
-
-	while true:
-		ticks += 1
-		if ticks > _max_ticks:
-			_fail("match exceeded %d ticks (runaway loop)" % _max_ticks)
-			return {}
-
-		var event := arena.advance_time(MOVE_INTERVAL)
-		if event == SnakeArena.TimeEvent.TIME_UP:
-			time_up = true
-			break
-
-		var state := arena.compute_state(SnakeArena.Side.BOTTOM)
-		var action := brain.select_action(state)
-		var dir_trained := SnakeArena.relative_to_direction(action, arena.direction_bottom)
-
-		var rival_action := PresetAI.decide(arena, SnakeArena.Side.TOP, params)
-		var dir_rival := SnakeArena.relative_to_direction(rival_action, arena.direction_top)
-
-		# Classify before step(): step() reports crashes but not their cause.
-		var causes := _classify(arena, dir_rival, dir_trained)
-		var result := arena.step(dir_rival, dir_trained)
-		rival_crashed = result["top_crashed"]
-		trained_crashed = result["bottom_crashed"]
-		rival_cause = causes[0]
-		trained_cause = causes[1]
-
-		if rival_crashed != (rival_cause != "") or trained_crashed != (trained_cause != ""):
-			_fail("crash classifier drifted from arena.step (tick %d, rival crashed=%s cause='%s', trained crashed=%s cause='%s')" % [ticks, str(rival_crashed), rival_cause, str(trained_crashed), trained_cause])
-			return {}
-		if (rival_crashed and not CAUSES.has(rival_cause)) or (trained_crashed and not CAUSES.has(trained_cause)):
-			_fail("unclassified crash (tick %d, rival='%s', trained='%s')" % [ticks, rival_cause, trained_cause])
-			return {}
-		if rival_crashed or trained_crashed:
-			break
-
-	var score_t: int = arena.score_bottom
-	var score_r: int = arena.score_top
-	var outcome: String
-	if time_up:
-		outcome = _by_score(score_t, score_r)
-		trained_cause = "time_up"
-		rival_cause = "time_up"
-	else:
-		if trained_crashed and rival_crashed:
-			outcome = _by_score(score_t, score_r)
-		elif rival_crashed:
-			outcome = "W"
-		else:
-			outcome = "L"
-		if not trained_crashed:
-			trained_cause = "survived"
-		if not rival_crashed:
-			rival_cause = "survived"
-
-	return {
-		"outcome": outcome,
-		"time_up": time_up,
-		"score_trained": score_t,
-		"score_rival": score_r,
-		"ticks": ticks,
-		"trained_cause": trained_cause,
-		"rival_cause": rival_cause,
-	}
-
-
-## Same rule as fast_train.gd: strictly more points wins; equal points is a draw
-## here (the game counts a draw as "not won", which is still a non-win).
-func _by_score(score_trained: int, score_rival: int) -> String:
-	if score_trained > score_rival:
-		return "W"
-	if score_trained < score_rival:
-		return "L"
-	return "D"
-
-
-## Returns [rival_cause, trained_cause] for the move about to be passed to
-## arena.step(). "" means that snake does not crash. Mirrors step()/is_blocked().
-func _classify(arena: SnakeArena, dir_top: int, dir_bottom: int) -> Array:
-	var new_top: Vector2i = arena.snake_top[0] + SnakeArena.dir_vector(dir_top)
-	var new_bottom: Vector2i = arena.snake_bottom[0] + SnakeArena.dir_vector(dir_bottom)
-	var heads_equal := new_top == new_bottom
-	# Swapping cells: step() sees two body hits, but it is really a head-on crash.
-	if new_top == arena.snake_bottom[0] and new_bottom == arena.snake_top[0]:
-		return ["head_on", "head_on"]
-	return [
-		_cause_for(arena, new_top, arena.snake_top, arena.snake_bottom, heads_equal),
-		_cause_for(arena, new_bottom, arena.snake_bottom, arena.snake_top, heads_equal),
-	]
-
-
-func _cause_for(arena: SnakeArena, new_head: Vector2i, own: Array, other: Array, heads_equal: bool) -> String:
-	if arena.is_blocked(new_head, own, other):
-		if new_head.x < 0 or new_head.x >= SnakeArena.GRID_WIDTH or new_head.y < 0 or new_head.y >= SnakeArena.GRID_HEIGHT:
-			return "wall"
-		if arena.phase == 1 and new_head.y == SnakeArena.BARRIER_ROW:
-			return "barrier"
-		if own.has(new_head):
-			return "self"
-		if arena.phase == 2 and other.has(new_head):
-			return "other_snake_body"
-		return "unclassified"  # is_blocked changed in a way we do not know
-	# Not blocked by the map or the bodies: the remaining crash rules of step().
-	if heads_equal:
-		return "head_on"
-	if other.has(new_head):
-		return "other_snake_body"
-	return ""
-
-
-func _zero_causes() -> Dictionary:
-	var d := {}
-	for c in CAUSES:
-		d[c] = 0
-	return d
-
-
-## 95% Wilson score interval for a proportion, as fractions [low, high].
-func _wilson(successes: int, n: int) -> Array:
-	var p := float(successes) / float(n)
-	var z2 := WILSON_Z * WILSON_Z
-	var denom := 1.0 + z2 / float(n)
-	var centre := (p + z2 / (2.0 * float(n))) / denom
-	var half := WILSON_Z * sqrt(p * (1.0 - p) / float(n) + z2 / (4.0 * float(n) * float(n))) / denom
-	return [maxf(0.0, centre - half), minf(1.0, centre + half)]
 
 
 func _r4(x: float) -> float:
@@ -503,12 +330,6 @@ func _parse_args(args: PackedStringArray) -> Dictionary:
 # Output (the only write path of this tool)
 # ---------------------------------------------------------------------------
 
-func _is_inside_user_dir(abs_path: String) -> bool:
-	var user_dir := OS.get_user_data_dir().replace("\\", "/").trim_suffix("/").to_lower()
-	var p := abs_path.replace("\\", "/").to_lower()
-	return p == user_dir or p.begins_with(user_dir + "/")
-
-
 func _write_json(out_dir: String, cfg: Dictionary, brain: SnakeBrain, results: Array) -> String:
 	var err := DirAccess.make_dir_recursive_absolute(out_dir)
 	if err != OK:
@@ -527,7 +348,7 @@ func _write_json(out_dir: String, cfg: Dictionary, brain: SnakeBrain, results: A
 		# Everything under "run" differs between runs; "config" + "results" must not.
 		"run": {
 			"date": stamp,
-			"git_commit": _git_commit(),
+			"git_commit": MatchSim.git_commit(),
 			"godot_version": Engine.get_version_info()["string"],
 		},
 		"config": {
@@ -557,31 +378,3 @@ func _write_json(out_dir: String, cfg: Dictionary, brain: SnakeBrain, results: A
 	f.store_string(JSON.stringify(doc, "\t", true))
 	f.close()
 	return path
-
-
-## Short commit hash read straight from .git (no process spawn); "unknown" if not found.
-func _git_commit() -> String:
-	var git_dir := ProjectSettings.globalize_path("res://").path_join(".git")
-	var head := _read_text(git_dir.path_join("HEAD")).strip_edges()
-	if head.is_empty():
-		return "unknown"
-	if not head.begins_with("ref: "):
-		return head.substr(0, 7)
-	var ref := head.substr(5)
-	var sha := _read_text(git_dir.path_join(ref)).strip_edges()
-	if sha.is_empty():
-		for line in _read_text(git_dir.path_join("packed-refs")).split("\n"):
-			if line.ends_with(" " + ref):
-				sha = line.split(" ")[0]
-	return "unknown" if sha.is_empty() else sha.substr(0, 7)
-
-
-func _read_text(path: String) -> String:
-	if not FileAccess.file_exists(path):
-		return ""
-	var f := FileAccess.open(path, FileAccess.READ)
-	if f == null:
-		return ""
-	var t := f.get_as_text()
-	f.close()
-	return t
