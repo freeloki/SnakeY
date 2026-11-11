@@ -30,7 +30,7 @@ Neden: üç script'te ~1500 satır kopya kod var. Sabitler elle senkron tutuluyo
 
 ## Faz 3: AI iyileştirme (ölçüm odaklı)
 Sorun (F2-4 ölçümü): seviye 1-5'te kazanma %10-24; AI çoğunlukla duvara ve kendi gövdesine çarpıyor. Eski kuralda seviye tek galibiyetle geçildiği için `highest_cleared` beynin gücünü olduğundan yüksek gösteriyordu (F3-8).
-- [~] **F3-1** `ai-trainer`: eğitimsiz beyinle "headless self-training" scripti (`tools/train_ai.gd`), parametre denemelerini dakikalar içinde yapmak için.
+- [x] **F3-1** `ai-trainer`: eğitimsiz beyinle "headless self-training" scripti (`tools/train_ai.gd`), parametre denemelerini dakikalar içinde yapmak için.
 - [?] **F3-2** `ai-trainer`: flood-fill / kaçış alanı bitleri ile durum v2. **Mevcut Q-tablosunu sıfırlar.** Yedek + versiyon + Yavuz onayı.
 - [ ] **F3-3** `ai-trainer`: ödül ve epsilon taraması, en iyi set eval ile seçilir.
 - [ ] **F3-4** Seviye eğrisi kalibrasyonu: hazır rakip seviyeleri gerçekten kademeli zorlaşıyor mu (seviye L vs L+1 eval).
