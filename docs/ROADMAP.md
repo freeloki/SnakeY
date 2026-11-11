@@ -32,12 +32,13 @@ Neden: üç script'te ~1500 satır kopya kod var. Sabitler elle senkron tutuluyo
 Sorun (F2-4 ölçümü): seviye 1-5'te kazanma %10-24; AI çoğunlukla duvara ve kendi gövdesine çarpıyor. Eski kuralda seviye tek galibiyetle geçildiği için `highest_cleared` beynin gücünü olduğundan yüksek gösteriyordu (F3-8).
 - [x] **F3-1** `ai-trainer`: eğitimsiz beyinle "headless self-training" scripti (`tools/train_ai.gd`), parametre denemelerini dakikalar içinde yapmak için.
 - [?] **F3-2** `ai-trainer`: flood-fill / kaçış alanı bitleri ile durum v2. **Mevcut Q-tablosunu sıfırlar.** Yedek + versiyon + Yavuz onayı.
-- [~] **F3-3** `ai-trainer`: ödül ve epsilon taraması, en iyi set eval ile seçilir. Sonuç: `docs/sweeps/F3-3.md`. Öneri `gamma=0.7, step_penalty=-0.5` (seviye 1-5 +6.5 puan, anlamlı); epsilon değişiklikleri gürültü içinde. Varsayılan değişikliği Yavuz'un onayını bekliyor (golden yenilenir).
+- [x] **F3-3** `ai-trainer`: ödül ve epsilon taraması, en iyi set eval ile seçilir. Sonuç: `docs/sweeps/F3-3.md`. Öneri `gamma=0.7, step_penalty=-0.5` (seviye 1-5 +6.5 puan, anlamlı); epsilon değişiklikleri gürültü içinde. Yavuz onayladı, varsayılan değişikliği F3-9.
 - [ ] **F3-4** Seviye eğrisi kalibrasyonu: hazır rakip seviyeleri gerçekten kademeli zorlaşıyor mu (seviye L vs L+1 eval).
 - [x] **F3-5** `ai-trainer`: hamle maskesi. Boş kare varken dolu kareye girilmez. Donmuş beyinle ölçüm: seviye 1-5 ~%12 → ~%68.
 - [ ] **F3-6** `ai-trainer`: oyuncu hamlelerinden öğrenme. Antrenman'daki hamleler ödül/cezasıyla Q-tablosuna işlenir. Etkisi oyuncu yerine geçen botla ölçülür.
 - [ ] **F3-7** `ai-trainer`: taklit azalması. Şu an her maçta azalıyor (1404 maçta etkisi ~0,0075 puan), Hızlı Antrenman maçları oyuncudan öğreneni söndürmemeli.
 - [x] **F3-8** `gdscript-dev`: seviye geçme kuralı. 5 maçlık seride 3 galibiyet, berabere galibiyet sayılmaz. Mevcut `highest_cleared` korunur.
+- [~] **F3-9** `ai-trainer`: F3-3 önerisini varsayılan yap (`gamma=0.7`, `step_penalty=-0.5`). Format değişmez; golden referansı yenilenir; Yavuz oyunda test eder.
 
 ## Faz 4: Cila
 - [ ] **F4-1** Görsel tema (renk paleti, yılan/yem çizimi, barikat animasyonu)
