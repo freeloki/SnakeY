@@ -32,7 +32,7 @@ Neden: üç script'te ~1500 satır kopya kod var. Sabitler elle senkron tutuluyo
 Sorun (F2-4 ölçümü): seviye 1-5'te kazanma %10-24; AI çoğunlukla duvara ve kendi gövdesine çarpıyor. Eski kuralda seviye tek galibiyetle geçildiği için `highest_cleared` beynin gücünü olduğundan yüksek gösteriyordu (F3-8).
 - [x] **F3-1** `ai-trainer`: eğitimsiz beyinle "headless self-training" scripti (`tools/train_ai.gd`), parametre denemelerini dakikalar içinde yapmak için.
 - [?] **F3-2** `ai-trainer`: flood-fill / kaçış alanı bitleri ile durum v2. **Mevcut Q-tablosunu sıfırlar.** Yedek + versiyon + Yavuz onayı.
-- [ ] **F3-3** `ai-trainer`: ödül ve epsilon taraması, en iyi set eval ile seçilir.
+- [~] **F3-3** `ai-trainer`: ödül ve epsilon taraması, en iyi set eval ile seçilir. Sonuç: `docs/sweeps/F3-3.md`. Öneri `gamma=0.7, step_penalty=-0.5` (seviye 1-5 +6.5 puan, anlamlı); epsilon değişiklikleri gürültü içinde. Varsayılan değişikliği Yavuz'un onayını bekliyor (golden yenilenir).
 - [ ] **F3-4** Seviye eğrisi kalibrasyonu: hazır rakip seviyeleri gerçekten kademeli zorlaşıyor mu (seviye L vs L+1 eval).
 - [x] **F3-5** `ai-trainer`: hamle maskesi. Boş kare varken dolu kareye girilmez. Donmuş beyinle ölçüm: seviye 1-5 ~%12 → ~%68.
 - [ ] **F3-6** `ai-trainer`: oyuncu hamlelerinden öğrenme. Antrenman'daki hamleler ödül/cezasıyla Q-tablosuna işlenir. Etkisi oyuncu yerine geçen botla ölçülür.
@@ -83,3 +83,14 @@ Sorun (F2-4 ölçümü): seviye 1-5'te kazanma %10-24; AI çoğunlukla duvara ve
 | 2026-11-08 | F3-1 | 3 | 200 | 65.0 | Aynı 3 beyin ort. (63.0 / 62.0 / 70.0), eval seed 1000 |
 | 2026-11-08 | F3-1 | 4 | 200 | 65.3 | Aynı 3 beyin ort. (64.0 / 64.0 / 68.0), eval seed 1000 |
 | 2026-11-08 | F3-1 | 5 | 200 | 63.5 | Aynı 3 beyin ort. (62.5 / 63.0 / 65.0), eval seed 1000 |
+| 2026-11-11 | F3-3 | 1 | 400 | 66.2 | Baz (varsayılanlar), boş beyin + train_ai 3000 maç seviye 1, taklitsiz; 10 taze eğitim seed'i ort. (101-110), eval_ai epsilon 0.06, seed 1000 |
+| 2026-11-11 | F3-3 | 2 | 400 | 64.3 | Baz (varsayılanlar), boş beyin + train_ai 3000 maç seviye 1, taklitsiz; 10 taze eğitim seed'i ort. (101-110), eval_ai epsilon 0.06, seed 1000 |
+| 2026-11-11 | F3-3 | 3 | 400 | 65.6 | Baz (varsayılanlar), boş beyin + train_ai 3000 maç seviye 1, taklitsiz; 10 taze eğitim seed'i ort. (101-110), eval_ai epsilon 0.06, seed 1000 |
+| 2026-11-11 | F3-3 | 4 | 400 | 64.9 | Baz (varsayılanlar), boş beyin + train_ai 3000 maç seviye 1, taklitsiz; 10 taze eğitim seed'i ort. (101-110), eval_ai epsilon 0.06, seed 1000 |
+| 2026-11-11 | F3-3 | 5 | 400 | 64.7 | Baz (varsayılanlar), boş beyin + train_ai 3000 maç seviye 1, taklitsiz; 10 taze eğitim seed'i ort. (101-110), eval_ai epsilon 0.06, seed 1000 |
+| 2026-11-11 | F3-3 | 1 | 400 | 72.7 | Aday gamma=0.7, step_penalty=-0.5, aynı koşullar; baza fark +6.5 [+5.1, +8.0] (seviye 1-5 ort., Welch) |
+| 2026-11-11 | F3-3 | 2 | 400 | 71.2 | Aday gamma=0.7, step_penalty=-0.5, aynı koşullar; baza fark +6.5 [+5.1, +8.0] (seviye 1-5 ort., Welch) |
+| 2026-11-11 | F3-3 | 3 | 400 | 71.4 | Aday gamma=0.7, step_penalty=-0.5, aynı koşullar; baza fark +6.5 [+5.1, +8.0] (seviye 1-5 ort., Welch) |
+| 2026-11-11 | F3-3 | 4 | 400 | 72.1 | Aday gamma=0.7, step_penalty=-0.5, aynı koşullar; baza fark +6.5 [+5.1, +8.0] (seviye 1-5 ort., Welch) |
+| 2026-11-11 | F3-3 | 5 | 400 | 71.2 | Aday gamma=0.7, step_penalty=-0.5, aynı koşullar; baza fark +6.5 [+5.1, +8.0] (seviye 1-5 ort., Welch) |
+| 2026-11-11 | F3-3 | 1 | 200 | 70.2 | Geçiş: 3000 maçlık varsayılan beyin + 1000 maç aday setle (devam eden baz 66.8, fark +3.4 [+1.0, +5.8]), 10 seed ort. |
